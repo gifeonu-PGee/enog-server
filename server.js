@@ -182,7 +182,7 @@ async function sendWeeklyReport() {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Enog Beauty Castle AI <reports@enogbeautycastle.com>',
+        from: 'Enog Beauty Castle AI <onboarding@resend.dev>',
         to: ['pnoghayinpromise@gmail.com'],
         subject: `📊 Weekly Report — ${weekStartStr} to ${weekEndStr}`,
         html: htmlReport,
