@@ -183,7 +183,7 @@ async function sendWeeklyReport() {
       },
       body: JSON.stringify({
         from: 'Enog Beauty Castle AI <onboarding@resend.dev>',
-        to: ['pnoghayinpromise@gmail.com'],
+        to: ['gifeonu@gmail.com'],
         subject: `📊 Weekly Report — ${weekStartStr} to ${weekEndStr}`,
         html: htmlReport,
       }),
