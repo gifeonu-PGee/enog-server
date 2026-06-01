@@ -395,17 +395,17 @@ app.post('/webhook', async (req, res) => {
     const convKey = `conv_${From.replace(/[^a-zA-Z0-9]/g, '_')}`;
     let convData = await redisGet(convKey) || { id: convKey, from: From, name: customerName, messages: [], status: 'needs_reply', lastActive: Date.now(), unread: 0 };
 
-    const isFirst = convData.messages.length === 0;
-    if (!conversations[From]) conversations[From] = [];
-
-    // Rebuild AI history from saved messages
-    const aiHistory = convData.messages.slice(-20).map(m => ({
-      role: m.from === 'customer' ? 'user' : 'assistant',
-      content: m.text
-    })).filter(m => !m.content.startsWith('[Voice'));
-
-    aiHistory.push({ role: 'user', content: messageContent });
-    if (aiHistory.length > 20) aiHistory.splice(0, aiHistory.length - 20);
+    // Use in-memory as PRIMARY source for conversation history
+    if (!conversations[From]) {
+      // Rebuild from Redis on first load
+      conversations[From] = convData.messages.slice(-20)
+        .map(m => ({ role: m.from === "customer" ? "user" : "assistant", content: m.text }))
+        .filter(m => m.content && !m.content.startsWith("[Voice"));
+    }
+    const isFirst = conversations[From].length === 0;
+    conversations[From].push({ role: "user", content: messageContent });
+    if (conversations[From].length > 20) conversations[From] = conversations[From].slice(-20);
+    const aiHistory = conversations[From];
 
     const systemPrompt = `${BUSINESS_PROMPT}
 
@@ -421,6 +421,9 @@ CONVERSATION STATUS: ${isFirst ? 'NEW - greet warmly and briefly.' : 'ONGOING - 
     const reply = aiData.content?.[0]?.text || "How can I help you? 😊";
 
     console.log(`Reply: ${reply}`);
+
+    // Save AI reply to in-memory history
+    conversations[From].push({ role: "assistant", content: reply });
 
     // Save both messages to Redis
     convData.messages.push({ from: 'customer', text: messageContent === Body ? messageContent : '[Image]', time: new Date().toISOString() });
