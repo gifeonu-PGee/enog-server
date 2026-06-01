@@ -333,6 +333,23 @@ app.get('/api/analytics', (req, res) => {
 // ── Health & Utility ──────────────────────────────────────────────────────────
 app.get('/', (req, res) => res.send('Enog Beauty Castle AI Agent is running! 👑'));
 app.get('/webhook', (req, res) => res.send('Webhook is live!'));
+
+// Debug Redis connection
+app.get('/debug', async (req, res) => {
+  const url = process.env.KV_REST_API_URL;
+  const token = process.env.KV_REST_API_TOKEN;
+  try {
+    const r = await fetch(`${url}/set/test_key`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(['test_value', 'EX', '60'])
+    });
+    const d = await r.json();
+    res.json({ hasUrl: !!url, hasToken: !!token, urlPreview: url ? url.substring(0,30) : 'MISSING', redisTest: d, inMemoryConvs: Object.keys(conversations).length });
+  } catch(e) {
+    res.json({ hasUrl: !!url, hasToken: !!token, error: e.message });
+  }
+});
 app.get('/send-report', async (req, res) => {
   await sendWeeklyReport();
   res.send('Weekly report sent!');
