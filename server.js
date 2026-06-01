@@ -96,7 +96,13 @@ async function redisLoad(key) {
       headers: { Authorization: `Bearer ${token}` }
     });
     const d = await r.json();
-    return d.result ? JSON.parse(d.result) : null;
+    if (!d.result) return null;
+    try {
+      const parsed = JSON.parse(d.result);
+      // Handle Upstash wrapper format
+      if (parsed && parsed.value) return JSON.parse(parsed.value);
+      return parsed;
+    } catch { return null; }
   } catch { return null; }
 }
 
