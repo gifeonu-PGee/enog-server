@@ -4,6 +4,15 @@ const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+// CORS for Vercel dashboard
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://enog-beauty-castle.vercel.app');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  next();
+});
+
 const conversations = {};
 const imageCounts = {};
 
@@ -70,6 +79,59 @@ function getBusiestHour(hourlyMessages) {
   return `${hour % 12 || 12}:00 ${hour >= 12 ? 'PM' : 'AM'}`;
 }
 
+// Upstash Redis helpers
+async function redisGet(key) {
+  try {
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    const r = await fetch(`${url}/get/${key}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const d = await r.json();
+    return d.result ? JSON.parse(d.result) : null;
+  } catch { return null; }
+}
+
+async function redisSet(key, value, ex = 604800) {
+  try {
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    await fetch(`${url}/set/${key}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify([JSON.stringify(value), 'EX', ex])
+    });
+  } catch (e) { console.error('Redis set error:', e.message); }
+}
+
+async function redisKeys(pattern) {
+  try {
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    const r = await fetch(`${url}/keys/${pattern}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const d = await r.json();
+    return d.result || [];
+  } catch { return []; }
+}
+
+async function saveConversation(from, name, messages, status = 'needs_reply') {
+  const key = `conv_${from.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  const existing = await redisGet(key);
+  const conv = {
+    id: key,
+    from,
+    name: name || from,
+    messages,
+    status: existing ? existing.status : status,
+    lastActive: Date.now(),
+    unread: existing ? (existing.unread || 0) + 1 : 1,
+  };
+  await redisSet(key, conv);
+  return conv;
+}
+
 async function sendWeeklyReport() {
   try {
     const weekEnd = new Date();
@@ -81,23 +143,16 @@ async function sendWeeklyReport() {
       .container{max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
       .header{background:linear-gradient(135deg,#1c0a00,#c9a96e);padding:30px;text-align:center;}
       .header h1{color:#f0cc8a;margin:0;font-size:24px;}
-      .header p{color:#c9a96e;margin:8px 0 0;}
       .body{padding:30px;}
       .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:20px 0;}
       .stat{background:#fdf8f3;border-radius:10px;padding:16px;text-align:center;border:1px solid #ede5da;}
       .stat .number{font-size:32px;font-weight:bold;color:#3b1500;}
       .stat .label{font-size:12px;color:#b59a7a;margin-top:4px;}
       .section{margin:20px 0;padding:16px;background:#fdf8f3;border-radius:10px;border:1px solid #ede5da;}
-      .section h3{color:#3b1500;margin:0 0 10px;font-size:14px;}
-      .section p{color:#6b4c2a;margin:4px 0;font-size:13px;}
       .footer{background:#fdf8f3;padding:20px;text-align:center;font-size:12px;color:#b59a7a;}
     </style></head><body>
     <div class="container">
-      <div class="header">
-        <h1>👑 Enog Beauty Castle</h1>
-        <p>Weekly AI Agent Report</p>
-        <p style="font-size:12px">${weekStartStr} — ${weekEndStr}</p>
-      </div>
+      <div class="header"><h1>👑 Enog Beauty Castle</h1><p>Weekly AI Agent Report</p><p style="font-size:12px">${weekStartStr} — ${weekEndStr}</p></div>
       <div class="body">
         <p style="color:#6b4c2a">Hello Enog! Here's how your AI agent performed this week:</p>
         <div class="stat-grid">
@@ -106,7 +161,7 @@ async function sendWeeklyReport() {
           <div class="stat"><div class="number">${analytics.ordersMentioned}</div><div class="label">Order Intentions</div></div>
           <div class="stat"><div class="number">${Object.keys(analytics.dailyMessages).length}</div><div class="label">Active Days</div></div>
         </div>
-        <div class="section"><h3>🛍️ Most Asked Products</h3><p>${getTopItems(analytics.productMentions) || 'No product mentions yet'}</p></div>
+        <div class="section"><h3>🛍️ Most Asked Products</h3><p>${getTopItems(analytics.productMentions) || 'None yet'}</p></div>
         <div class="section"><h3>📅 Busiest Day</h3><p>${getBusiestDay(analytics.dailyMessages)}</p></div>
         <div class="section"><h3>⏰ Busiest Hour</h3><p>${getBusiestHour(analytics.hourlyMessages)}</p></div>
         <div class="section"><h3>💡 Insight</h3><p>Your AI agent handled <strong>${analytics.totalMessages} messages</strong> from <strong>${analytics.uniqueCustomers.size} customers</strong> this week — automatically, 24/7! 🎉</p></div>
@@ -114,12 +169,9 @@ async function sendWeeklyReport() {
       <div class="footer">Powered by Enog Beauty Castle AI Agent 🤖 | Owerri, Nigeria</div>
     </div></body></html>`;
 
-    const response = await fetch('https://api.resend.com/emails', {
+    await fetch('https://api.resend.com/emails', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Authorization': `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: 'Enog Beauty Castle AI <onboarding@resend.dev>',
         to: ['pnoghayinpromise@gmail.com'],
@@ -128,9 +180,6 @@ async function sendWeeklyReport() {
       }),
     });
 
-    const data = await response.json();
-    console.log('Weekly report sent:', JSON.stringify(data));
-
     analytics.totalMessages = 0;
     analytics.uniqueCustomers = new Set();
     analytics.productMentions = {};
@@ -138,22 +187,18 @@ async function sendWeeklyReport() {
     analytics.hourlyMessages = {};
     analytics.ordersMentioned = 0;
     analytics.weekStart = getMonday(new Date());
-  } catch (err) {
-    console.error('Failed to send weekly report:', err.message);
-  }
+    console.log('Weekly report sent!');
+  } catch (err) { console.error('Report error:', err.message); }
 }
 
 function scheduleWeeklyReport() {
-  const now = new Date();
   const nextMonday = getMonday(new Date());
   nextMonday.setDate(nextMonday.getDate() + 7);
   nextMonday.setHours(7, 0, 0, 0);
-  const msUntilMonday = nextMonday - now;
-  console.log(`Next weekly report in ${Math.round(msUntilMonday / 3600000)} hours`);
   setTimeout(() => {
     sendWeeklyReport();
     setInterval(sendWeeklyReport, 7 * 24 * 60 * 60 * 1000);
-  }, msUntilMonday);
+  }, nextMonday - new Date());
 }
 
 const BUSINESS_PROMPT = `You are the WhatsApp sales agent for ENOG BEAUTY CASTLE — No. 1 Wholesale Supplier of hair extensions in Owerri, Nigeria. Chat like a warm, professional Nigerian hair seller.
@@ -162,7 +207,7 @@ RULES:
 - Short replies (max 3 lines)
 - Max 1 emoji per reply, only if natural
 - Ask only 1 question per reply
-- Sound like a real person texting, NOT a robot
+- Sound like a real person texting, NOT a bot
 - NEVER greet mid-conversation
 - For orders, direct customers to website: enogbeautycastle.bumpa.shop OR they can order via WhatsApp
 
@@ -184,109 +229,124 @@ DELIVERY:
 
 RETURN POLICY:
 - 100% refund if item doesn't match quality described
-- Report issues immediately upon delivery
-- Report Line: 07034562686
-- Report Email: enogbeatycatle@gmail.com
+- Report Line: 07034562686 | Email: enogbeatycatle@gmail.com
 
-PACKS NEEDED FOR FULL HEAD:
-- Shoulder length: 2 packs
-- Bra length: 3 packs
-- Waist length: 5 packs
-- Hip length: 5–6 packs
+PACKS NEEDED:
+- Shoulder: 2 packs | Bra length: 3 packs | Waist: 5 packs | Hip: 5–6 packs
 
-DISTRIBUTORS: We are looking for distributors in different states. Interested customers can start with MOQ of 500 pieces. Direct them to manager on +2347034562686.
+DISTRIBUTORS: Looking for distributors in all states. MOQ 500 pieces. Direct to +2347034562686.
+CATALOG: https://wa.me/c/2347034562686
 
-CATALOG LINK: When customer asks to see catalog or colors, send: https://wa.me/c/2347034562686
+PRODUCTS:
+French Curls (8",12",24",26"): Single tone N3,750 | Two-tone N4,000 | Three-tone N4,500
+Italian Curls (150g, 3 packs full): Single N3,750 | Two-tone N4,000 | Three-tone N4,500
+Deep Wave (30", 120g): Single N4,000 | Two-tone N4,250 | Three-tone N4,500
+Body Wave (26"): N4,000
+Bone Straight (16",26"): N4,000
+Passion Twist (24"): N4,500 | Malley Twist (26"): N4,500 | Spring Twist: N4,000
+Human Hair DD 14": N40,000 | 16": N50,000 | 18": N60,000
+Human Hair SDD 14": N90,000 | 16": N100,000 | 18": N115,000
+Afro Kinky 14": N25,000 | +N4,000 for colors
+Braid Rack: N29,500 | Hair Clips: N1,500 | Ponytails: N15,000
 
-====== COMPLETE PRODUCT CATALOG ======
-
-🌀 FRENCH CURLS (8", 12", 24", 26")
-Single tone/mixed colors (1B, 27, 30, 33, 350, 613, 99J, Bug, Ginger, Grey, D-Pink, Mp2, Mp3, P27/33/613, P27/30, P30/33, P33/Ginger, Colour 24): N3,750
-Two-tone (Ot1b/27, Otb/30, Otb/29, Ot1b/Bug, Bug/Gold, T30/60): N4,000
-Three-tone (Otc/14, Otc/15): N4,500
-
-FRENCH CURLS WHOLESALE:
-1–50 packs: 1 colour N3,750 | 2 colour N4,000 | 3 colour N4,250
-50–200 packs: 1 colour N3,250 | 2 colour N3,500 | 3 colour N3,750
-200–500 packs: 1 colour N3,000 | 2 colour N3,250 | 3 colour N3,500
-500+ packs: 1 colour N2,750 | 2 colour N3,000 | 3 colour N3,250
+WHOLESALE (French Curls, Italian, Body Wave, Bone Straight):
+1-50: N3,750 | 50-200: N3,250 | 200-500: N3,000 | 500+: N2,750 (add N250 per tone)
 Pre-order: N2,600 + N220 per tone
 
-🌊 ITALIAN / LOOSE CURLS (8", 12", 24", 26" | 150g | 3 packs full hair)
-Single tone (1B, 27, 30, 33, 350, 613, 99J, Bug, Ginger, Grey, D-Pink, Mp2, Mp3, P27/30, P30/33, P33/Ginger): N3,750
-Two-tone (Ot1b/27, Otb/30, Otb/29, Ot1b/Bug, Bug/Gold, T30/60): N4,000 (8", 12", 18")
-Three-tone (Otc/14, Otc/15): N4,500 (8", 12", 18")
+WHOLESALE (Passion/Spring/Malley Twist):
+1-50: N4,500 | 51-200: N4,250 | 201-500: N4,000 | 500-1000: N3,750`;
 
-ITALIAN CURLS WHOLESALE: Same tiers as French Curls
-Pre-order: N2,600 + N220 per tone
+// ── API Routes for Dashboard ──────────────────────────────────────────────────
 
-🌊 DEEP WAVE (30" | 120g | 3 packs full hair)
-Single tone: N4,000 | Two-tone: N4,250 | Three-tone: N4,500
+// Get all conversations
+app.get('/api/conversations', async (req, res) => {
+  try {
+    const keys = await redisKeys('conv_*');
+    const convs = await Promise.all(keys.map(k => redisGet(k)));
+    const valid = convs.filter(Boolean).sort((a, b) => b.lastActive - a.lastActive);
+    res.json(valid);
+  } catch (e) {
+    res.json([]);
+  }
+});
 
-DEEP WAVE WHOLESALE:
-1–50: 1 colour N4,000 | 2 colour N4,250 | 3 colour N4,500
-50–200: N3,500 | N3,750 | N4,000
-200–500: N3,250 | N3,500 | N3,750
-500+: N3,000 | N3,250 | N3,500
-Pre-order: N2,600 + N220 per tone
+// Update conversation status
+app.post('/api/conversations/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    const conv = await redisGet(req.params.id);
+    if (conv) {
+      conv.status = status;
+      if (status === 'done') conv.unread = 0;
+      await redisSet(req.params.id, conv);
+    }
+    res.json({ success: true });
+  } catch (e) {
+    res.json({ success: false });
+  }
+});
 
-🌊 BODY WAVE (26")
-Colors: Bug, 27, 30, 33, 350, Ginger: N4,000
-WHOLESALE: Same tiers as French Curls | Pre-order: N2,820 + N220 per tone
+// Send manual reply from dashboard
+app.post('/api/reply', async (req, res) => {
+  try {
+    const { to, message, convId } = req.body;
+    const sid = process.env.TWILIO_ACCOUNT_SID;
+    const token = process.env.TWILIO_AUTH_TOKEN;
+    const twilioFrom = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+14155238886';
 
-📏 BONE STRAIGHT (16" & 26")
-All colors including Ot1b/27, Otib/30, 613, 30, ginger, 350, 33, 27, bug: N4,000
-WHOLESALE: Same tiers as French Curls | Pre-order: N2,600 + N220 per tone
+    await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64'),
+      },
+      body: new URLSearchParams({ From: twilioFrom, To: to, Body: message }).toString(),
+    });
 
-🔄 TWISTS:
-Passion Twist (24"): N4,500 | 2–3 for full hair
-Malley Twist (26"): N4,500 | Extra N250 for colour
-Spring Twist (150g): N4,000 (1–15 packs)
+    // Save reply to conversation
+    const conv = await redisGet(convId);
+    if (conv) {
+      conv.messages.push({ from: 'business', text: message, time: new Date().toISOString() });
+      conv.status = 'done';
+      conv.unread = 0;
+      await redisSet(convId, conv);
+    }
 
-TWIST WHOLESALE (Passion, Spring, Malley):
-1–50: N4,500 | 51–200: N4,250 | 201–500: N4,000 | 500–1000: N3,750
-Spring/Malley OTC: +N250
+    res.json({ success: true });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
 
-💇 HUMAN HAIR BRAID EXTENSIONS (100g):
-DD 14": 1–15: N40,000 | 16–30: N37,000 | 31–50: N34,000
-DD 16": 1–15: N50,000 | 16–30: N47,000 | 31–50: N44,000
-DD 18": 1–15: N60,000 | 16–30: N57,000 | 31–50: N54,000
-SDD 14": 1–15: N90,000 | 16–30: N87,000 | 31–50: N84,000
-SDD 16": 1–15: N100,000 | 16–30: N97,000 | 31–50: N94,000
-SDD 18": 1–15: N115,000 | 16–30: N112,000 | 31–50: N109,000
-Extra N5,000 for colours.
+// Analytics endpoint
+app.get('/api/analytics', (req, res) => {
+  res.json({
+    totalMessages: analytics.totalMessages,
+    uniqueCustomers: analytics.uniqueCustomers.size,
+    ordersMentioned: analytics.ordersMentioned,
+    topProducts: getTopItems(analytics.productMentions),
+    busiestDay: getBusiestDay(analytics.dailyMessages),
+    busiestHour: getBusiestHour(analytics.hourlyMessages),
+  });
+});
 
-AFRO KINKY BULK HUMAN HAIR (30g):
-14": 1–15: N25,000 | 16–30: N23,000 | 31–50: N22,000
-Extra N4,000 for colours. 90–150g needed for full head.
-
-🪮 ACCESSORIES:
-Braid Rack (with tray & 6 clips): N29,500
-Hair Clips: N1,500
-Ponytails: N15,000
-Detanglers: available — ask for price
-
-COMMON QUESTIONS:
-- Do you sell wigs? We don't sell regular wigs, but we have beautiful Braided Wigs!
-- Catalog? Visit enogbeautycastle.bumpa.shop or https://wa.me/c/2347034562686
-- Wholesale? Yes from 1 piece upwards with tiered pricing
-- Distributors? Yes, MOQ 500 pieces — contact manager on +2347034562686
-- Colors? 25–30+ colors, request catalog via link above`;
-
+// ── Health & Utility ──────────────────────────────────────────────────────────
 app.get('/', (req, res) => res.send('Enog Beauty Castle AI Agent is running! 👑'));
 app.get('/webhook', (req, res) => res.send('Webhook is live!'));
 app.get('/send-report', async (req, res) => {
   await sendWeeklyReport();
-  res.send('Weekly report sent! Check pnoghayinpromise@gmail.com');
+  res.send('Weekly report sent!');
 });
 
+// ── Main WhatsApp Webhook ─────────────────────────────────────────────────────
 app.post('/webhook', async (req, res) => {
   res.status(200).send('OK');
   try {
-    const { Body, From, To, NumMedia, MediaUrl0, MediaContentType0 } = req.body;
+    const { Body, From, To, ProfileName, NumMedia, MediaUrl0, MediaContentType0 } = req.body;
     if (!From || !To) return;
 
-    console.log(`[${new Date().toISOString()}] From: ${From} | Msg: ${Body || '[media]'}`);
+    const customerName = ProfileName || From;
+    console.log(`[${new Date().toISOString()}] From: ${customerName} (${From}) | Msg: ${Body || '[media]'}`);
 
     // Handle voice notes
     if (NumMedia > 0 && MediaContentType0 && MediaContentType0.startsWith('audio')) {
@@ -295,91 +355,89 @@ app.post('/webhook', async (req, res) => {
       const token = process.env.TWILIO_AUTH_TOKEN;
       await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64'),
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64') },
         body: new URLSearchParams({ From: To, To: From, Body: voiceReply }).toString(),
       });
+      // Save to dashboard
+      const key = `conv_${From.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      const existing = await redisGet(key) || { id: key, from: From, name: customerName, messages: [], status: 'needs_reply', lastActive: Date.now(), unread: 0 };
+      existing.messages.push({ from: 'customer', text: '[Voice note received]', time: new Date().toISOString() });
+      existing.messages.push({ from: 'business', text: voiceReply, time: new Date().toISOString() });
+      existing.lastActive = Date.now();
+      await redisSet(key, existing);
       return;
     }
 
-    // Handle images (max 3 per day per customer)
+    // Handle images
     let messageContent = Body || '';
     if (NumMedia > 0 && MediaUrl0 && MediaContentType0 && MediaContentType0.startsWith('image')) {
       const today = new Date().toISOString().split('T')[0];
       const imgKey = `${From}_${today}`;
       imageCounts[imgKey] = (imageCounts[imgKey] || 0) + 1;
-
       if (imageCounts[imgKey] > 3) {
         const sid = process.env.TWILIO_ACCOUNT_SID;
         const token = process.env.TWILIO_AUTH_TOKEN;
         await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64'),
-          },
-          body: new URLSearchParams({ From: To, To: From, Body: "Thank you for the picture 😊 It has been received and will be reviewed by our team. Is there anything else I can help you with?" }).toString(),
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64') },
+          body: new URLSearchParams({ From: To, To: From, Body: "Thank you for the picture 😊 It has been received and will be reviewed by our team." }).toString(),
         });
         return;
       }
-      // Pass image to Claude for analysis
-      messageContent = Body ? `[Customer sent an image with caption: "${Body}"]` : "[Customer sent an image]";
+      messageContent = Body ? `[Customer sent an image with caption: "${Body}"]` : "[Customer sent an image - describe what you see and how it relates to hair extensions if relevant]";
     }
 
     if (!messageContent) return;
 
     trackMessage(From, messageContent);
 
-    if (!conversations[From]) {
-      conversations[From] = { history: [], lastActive: Date.now() };
-      analytics.totalConversations++;
-    }
+    // Load conversation from Redis
+    const convKey = `conv_${From.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    let convData = await redisGet(convKey) || { id: convKey, from: From, name: customerName, messages: [], status: 'needs_reply', lastActive: Date.now(), unread: 0 };
 
-    const conv = conversations[From];
-    conv.lastActive = Date.now();
-    const isFirst = conv.history.length === 0;
+    const isFirst = convData.messages.length === 0;
+    if (!conversations[From]) conversations[From] = [];
 
-    conv.history.push({ role: 'user', content: messageContent });
-    if (conv.history.length > 20) conv.history = conv.history.slice(-20);
+    // Rebuild AI history from saved messages
+    const aiHistory = convData.messages.slice(-20).map(m => ({
+      role: m.from === 'customer' ? 'user' : 'assistant',
+      content: m.text
+    })).filter(m => !m.content.startsWith('[Voice'));
+
+    aiHistory.push({ role: 'user', content: messageContent });
+    if (aiHistory.length > 20) aiHistory.splice(0, aiHistory.length - 20);
 
     const systemPrompt = `${BUSINESS_PROMPT}
 
-CONVERSATION STATUS: ${isFirst
-  ? 'NEW conversation - give one short warm greeting then ask what they need.'
-  : 'ONGOING conversation - DO NOT greet. Reply directly to what they said.'}`;
+CONVERSATION STATUS: ${isFirst ? 'NEW - greet warmly and briefly.' : 'ONGOING - NO greeting. Reply directly.'}`;
 
     const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 250,
-        system: systemPrompt,
-        messages: conv.history,
-      }),
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 250, system: systemPrompt, messages: aiHistory }),
     });
 
     const aiData = await aiRes.json();
     const reply = aiData.content?.[0]?.text || "How can I help you? 😊";
-    conv.history.push({ role: 'assistant', content: reply });
 
-    console.log(`[${new Date().toISOString()}] Reply: ${reply}`);
+    console.log(`Reply: ${reply}`);
 
+    // Save both messages to Redis
+    convData.messages.push({ from: 'customer', text: messageContent === Body ? messageContent : '[Image]', time: new Date().toISOString() });
+    convData.messages.push({ from: 'business', text: reply, time: new Date().toISOString() });
+    convData.lastActive = Date.now();
+    convData.name = customerName;
+    convData.unread = (convData.unread || 0) + 1;
+    convData.status = 'needs_reply';
+    if (convData.messages.length > 100) convData.messages = convData.messages.slice(-100);
+    await redisSet(convKey, convData);
+
+    // Send WhatsApp reply
     const sid = process.env.TWILIO_ACCOUNT_SID;
     const token = process.env.TWILIO_AUTH_TOKEN;
-
     await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64'),
-      },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64') },
       body: new URLSearchParams({ From: To, To: From, Body: reply }).toString(),
     });
 
@@ -389,12 +447,6 @@ CONVERSATION STATUS: ${isFirst
 });
 
 setInterval(() => {
-  const oneDay = 24 * 60 * 60 * 1000;
-  const now = Date.now();
-  for (const key in conversations) {
-    if (now - conversations[key].lastActive > oneDay) delete conversations[key];
-  }
-  // Clean old image counts
   const today = new Date().toISOString().split('T')[0];
   for (const key in imageCounts) {
     if (!key.includes(today)) delete imageCounts[key];
