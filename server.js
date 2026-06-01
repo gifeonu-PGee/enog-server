@@ -99,7 +99,7 @@ async function redisSet(key, value, ex = 604800) {
     await fetch(`${url}/set/${key}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify([JSON.stringify(value), 'EX', ex])
+      body: JSON.stringify({ value: JSON.stringify(value), ex: ex })
     });
   } catch (e) { console.error('Redis set error:', e.message); }
 }
