@@ -835,23 +835,16 @@ Please follow up with this customer urgently! 🙏`;
       convData.unread = (convData.unread || 0) + 1;
       convData.status = 'needs_reply';
       convData.aiPaused = false;
-      if (isNewOrder) {
+      // Check for order keywords
+      const orderKeywords = ['order','payment','paid','receipt','transfer','confirm','buy','purchase'];
+      const hasOrder = orderKeywords.some(k => messageContent.toLowerCase().includes(k));
+      if (hasOrder) {
         convData.hasNewOrder = true;
-        convData.orderNotified = false;
-        console.log('NEW ORDER from', customerName);
-      }
-      if (isNewOrder) {
-        convData.hasNewOrder = true;
-        convData.orderNotified = false;
-        console.log('NEW ORDER from', customerName);
-      }
-      if (isNewOrder) {
-        convData.hasNewOrder = true;
-        convData.orderNotified = false;
-        console.log('🔔 NEW ORDER DETECTED from', customerName);
+        console.log('🔔 Order keyword detected from', customerName);
       }
       if (convData.messages.length > 100) convData.messages = convData.messages.slice(-100);
       await redisSave(redisKey, convData);
+      console.log('✅ Conversation saved to Redis:', redisKey);
 
     } catch (err) {
       console.error('Webhook error:', err.message);
