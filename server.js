@@ -76,18 +76,20 @@ async function redisSave(key, value) {
   try {
     const url = process.env.KV_REST_API_URL;
     const token = process.env.KV_REST_API_TOKEN;
-    if (!url || !token) return;
-    const r = await fetch(`${url}/set/${key}`, {
+    if (!url || !token) { console.error('Redis: missing URL or token'); return; }
+    const serialized = JSON.stringify(value);
+    // Use Upstash pipeline to SET with EX in one call
+    const r = await fetch(`${url}/pipeline`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value: JSON.stringify(value), ex: 604800 })
+      body: JSON.stringify([["SET", key, serialized, "EX", "604800"]])
     });
     const d = await r.json();
-    console.log(`Redis save [${key}]:`, d.result);
+    console.log(`Redis save [${key}]: ${JSON.stringify(d)}`);
   } catch (e) { console.error('Redis save error:', e.message); }
 }
 
-async function redisLoad(key) {
+async function redisGet(key) {
   try {
     const url = process.env.KV_REST_API_URL;
     const token = process.env.KV_REST_API_TOKEN;
@@ -96,13 +98,12 @@ async function redisLoad(key) {
       headers: { Authorization: `Bearer ${token}` }
     });
     const d = await r.json();
-    if (!d.result) return null;
-    try {
-      const parsed = JSON.parse(d.result);
-      if (parsed && parsed.value) return JSON.parse(parsed.value);
-      return parsed;
-    } catch { return null; }
+    return d.result ? JSON.parse(d.result) : null;
   } catch { return null; }
+}
+
+async function redisLoad(key) {
+  return redisGet(key);
 }
 
 async function redisListKeys(pattern) {
