@@ -1,401 +1,392 @@
-const express = require('express');
-const app = express();
+import { useState, useEffect, useRef } from "react";
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+const RAILWAY_URL = "https://enog-server-production.up.railway.app";
 
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  next();
-});
+export default function Home() {
+  const [convos, setConvos] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [tab, setTab] = useState("chats");
+  const [manualMsg, setManualMsg] = useState("");
+  const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
+  const [search, setSearch] = useState("");
+  const [summary, setSummary] = useState(null);
+  const [summarizing, setSummarizing] = useState(false);
+  const bottomRef = useRef(null);
 
-// In-memory stores
-const conversations = {};
-const imageCounts = {};
-const analytics = {
-  totalMessages: 0,
-  totalConversations: 0,
-  uniqueCustomers: new Set(),
-  productMentions: {},
-  dailyMessages: {},
-  hourlyMessages: {},
-  ordersMentioned: 0,
-  weekStart: getMonday(new Date()),
-};
+  useEffect(() => {
+    fetchConversations();
+    fetchAnalytics();
+    const interval = setInterval(fetchConversations, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
-function getMonday(date) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [selected]);
 
-function trackMessage(from, body) {
-  const now = new Date();
-  const dayKey = now.toISOString().split('T')[0];
-  const hourKey = now.getHours();
-  analytics.totalMessages++;
-  analytics.uniqueCustomers.add(from);
-  analytics.dailyMessages[dayKey] = (analytics.dailyMessages[dayKey] || 0) + 1;
-  analytics.hourlyMessages[hourKey] = (analytics.hourlyMessages[hourKey] || 0) + 1;
-  const bodyLower = body.toLowerCase();
-  const products = ['french curl','italian curl','body wave','deep wave','spring twist',
-    'passion twist','bone straight','human hair','kinky','braid rack','gogo curl','malley twist'];
-  products.forEach(p => {
-    if (bodyLower.includes(p)) analytics.productMentions[p] = (analytics.productMentions[p] || 0) + 1;
-  });
-  if (bodyLower.includes('order') || bodyLower.includes('buy') || bodyLower.includes('want'))
-    analytics.ordersMentioned++;
-}
+  useEffect(() => {
+    setSummary(null);
+  }, [selected?.id]);
 
-function getTopItems(obj, n = 3) {
-  return Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n)
-    .map(([k, v]) => `${k}: ${v}`).join(', ') || 'None';
-}
-
-function getBusiestDay(d) {
-  if (!Object.keys(d).length) return 'N/A';
-  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const b = Object.entries(d).sort((a, b) => b[1] - a[1])[0];
-  return b ? `${days[new Date(b[0]).getDay()]} (${b[1]} messages)` : 'N/A';
-}
-
-function getBusiestHour(h) {
-  if (!Object.keys(h).length) return 'N/A';
-  const b = Object.entries(h).sort((a, b) => b[1] - a[1])[0];
-  if (!b) return 'N/A';
-  const hour = parseInt(b[0]);
-  return `${hour % 12 || 12}:00 ${hour >= 12 ? 'PM' : 'AM'}`;
-}
-
-// Redis helpers - completely separate, never block main flow
-async function redisSave(key, value) {
-  try {
-    const url = process.env.KV_REST_API_URL;
-    const token = process.env.KV_REST_API_TOKEN;
-    if (!url || !token) return;
-    await fetch(`${url}/set/${encodeURIComponent(key)}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value: JSON.stringify(value), ex: 604800 })
-    });
-  } catch (e) { console.error('Redis save error:', e.message); }
-}
-
-async function redisLoad(key) {
-  try {
-    const url = process.env.KV_REST_API_URL;
-    const token = process.env.KV_REST_API_TOKEN;
-    if (!url || !token) return null;
-    const r = await fetch(`${url}/get/${encodeURIComponent(key)}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const d = await r.json();
-    if (!d.result) return null;
+  async function fetchConversations() {
     try {
-      const parsed = JSON.parse(d.result);
-      // Handle Upstash wrapper format
-      if (parsed && parsed.value) return JSON.parse(parsed.value);
-      return parsed;
-    } catch { return null; }
-  } catch { return null; }
-}
-
-async function redisListKeys(pattern) {
-  try {
-    const url = process.env.KV_REST_API_URL;
-    const token = process.env.KV_REST_API_TOKEN;
-    if (!url || !token) return [];
-    const r = await fetch(`${url}/keys/${pattern}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const d = await r.json();
-    return d.result || [];
-  } catch { return []; }
-}
-
-async function sendWeeklyReport() {
-  try {
-    const weekEnd = new Date();
-    const ws = analytics.weekStart.toDateString();
-    const we = weekEnd.toDateString();
-    const html = `<!DOCTYPE html><html><body style="font-family:Arial;padding:20px;background:#f9f9f9">
-    <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
-    <div style="background:linear-gradient(135deg,#1c0a00,#c9a96e);padding:30px;text-align:center">
-    <h1 style="color:#f0cc8a;margin:0">👑 Enog Beauty Castle</h1>
-    <p style="color:#c9a96e;margin:8px 0 0">Weekly AI Agent Report: ${ws} — ${we}</p></div>
-    <div style="padding:30px">
-    <p>Hello Enog! Here's your weekly summary:</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:20px 0">
-    <div style="background:#fdf8f3;border-radius:10px;padding:16px;text-align:center;border:1px solid #ede5da">
-    <div style="font-size:32px;font-weight:800;color:#3b1500">${analytics.totalMessages}</div>
-    <div style="font-size:12px;color:#b59a7a">Total Messages</div></div>
-    <div style="background:#fdf8f3;border-radius:10px;padding:16px;text-align:center;border:1px solid #ede5da">
-    <div style="font-size:32px;font-weight:800;color:#3b1500">${analytics.uniqueCustomers.size}</div>
-    <div style="font-size:12px;color:#b59a7a">Unique Customers</div></div>
-    <div style="background:#fdf8f3;border-radius:10px;padding:16px;text-align:center;border:1px solid #ede5da">
-    <div style="font-size:32px;font-weight:800;color:#3b1500">${analytics.ordersMentioned}</div>
-    <div style="font-size:12px;color:#b59a7a">Order Intentions</div></div>
-    <div style="background:#fdf8f3;border-radius:10px;padding:16px;text-align:center;border:1px solid #ede5da">
-    <div style="font-size:32px;font-weight:800;color:#3b1500">${Object.keys(analytics.dailyMessages).length}</div>
-    <div style="font-size:12px;color:#b59a7a">Active Days</div></div></div>
-    <p><strong>Top Products:</strong> ${getTopItems(analytics.productMentions)}</p>
-    <p><strong>Busiest Day:</strong> ${getBusiestDay(analytics.dailyMessages)}</p>
-    <p><strong>Busiest Hour:</strong> ${getBusiestHour(analytics.hourlyMessages)}</p>
-    <p>Your AI handled <strong>${analytics.totalMessages} messages</strong> from <strong>${analytics.uniqueCustomers.size} customers</strong> automatically this week! 🎉</p>
-    </div><div style="background:#fdf8f3;padding:16px;text-align:center;font-size:12px;color:#b59a7a">Powered by Enog Beauty Castle AI 🤖</div></div></body></html>`;
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: 'Enog Beauty Castle AI <onboarding@resend.dev>', to: ['pnoghayinpromise@gmail.com'], subject: `📊 Weekly Report — ${ws} to ${we}`, html }),
-    });
-    analytics.totalMessages = 0; analytics.uniqueCustomers = new Set();
-    analytics.productMentions = {}; analytics.dailyMessages = {};
-    analytics.hourlyMessages = {}; analytics.ordersMentioned = 0;
-    analytics.weekStart = getMonday(new Date());
-    console.log('Weekly report sent!');
-  } catch (e) { console.error('Report error:', e.message); }
-}
-
-function scheduleWeeklyReport() {
-  const next = getMonday(new Date());
-  next.setDate(next.getDate() + 7);
-  next.setHours(7, 0, 0, 0);
-  setTimeout(() => { sendWeeklyReport(); setInterval(sendWeeklyReport, 7*24*60*60*1000); }, next - new Date());
-}
-
-const BUSINESS_PROMPT = `You are the WhatsApp sales agent for ENOG BEAUTY CASTLE — No. 1 Wholesale Supplier of hair extensions in Owerri, Nigeria. Chat like a warm, professional Nigerian hair seller.
-
-RULES:
-- Short replies (max 3 lines)
-- Max 1 emoji per reply, only if natural
-- Ask only 1 question per reply
-- Sound like a real person texting, NOT a bot
-- NEVER greet mid-conversation
-
-BUSINESS INFO:
-- Address: 124 Okigwe Road, Owerri, Imo State, Nigeria
-- Website: enogbeautycastle.bumpa.shop | Instagram: @enogbeautycastle
-- Manager WhatsApp: +2347034562686 (advise customers to save and follow)
-- Hours: Monday–Saturday 8am–6pm | Sunday: Closed | Public Holidays: Open
-- Report Line: 07034562686 | Email: enogbeatycatle@gmail.com
-
-PAYMENT: Moniepoint 5057191869 / UBA 1025287966 — Enog Beauty Castle
-
-DELIVERY: Owerri FREE same day | Nigeria FREE 5 working days | International extra charge
-Couriers: GIG, GUO, FedEx, Dispatch riders
-
-PACKS NEEDED: Shoulder: 2 | Bra length: 3 | Waist: 5 | Hip: 5–6
-
-RETURN: 100% refund if not as described. Report immediately on delivery.
-
-DISTRIBUTORS: Looking for distributors all states. MOQ 500 pieces. Direct to +2347034562686.
-CATALOG: https://wa.me/c/2347034562686
-
-PRODUCTS:
-French Curls (8",12",24",26"): Single tone N3,750 | Two-tone N4,000 | Three-tone N4,500
-Italian Curls (150g, 3 packs full): Single N3,750 | Two-tone N4,000 | Three-tone N4,500
-Deep Wave (30", 120g): Single N4,000 | Two-tone N4,250 | Three-tone N4,500
-Body Wave (26"): N4,000 | Bone Straight (16",26"): N4,000
-Passion Twist (24"): N4,500 | Malley Twist (26"): N4,500 | Spring Twist: N4,000
-Human Hair DD 14": N40,000 | 16": N50,000 | 18": N60,000
-Human Hair SDD 14": N90,000 | 16": N100,000 | 18": N115,000
-Afro Kinky 14": N25,000 (+N4,000 for colors)
-Braid Rack: N29,500 | Hair Clips: N1,500 | Ponytails: N15,000
-
-WHOLESALE (French Curls, Italian, Body Wave, Bone Straight):
-1-50: N3,750 | 50-200: N3,250 | 200-500: N3,000 | 500+: N2,750 (add N250 per tone)
-Pre-order: N2,600 + N220 per tone
-
-WHOLESALE (Passion/Spring/Malley Twist):
-1-50: N4,500 | 51-200: N4,250 | 201-500: N4,000 | 500-1000: N3,750`;
-
-// ── API Routes ────────────────────────────────────────────────────────────────
-app.get('/', (req, res) => res.send('Enog Beauty Castle AI Agent is running! 👑'));
-app.get('/webhook', (req, res) => res.send('Webhook is live!'));
-
-app.get('/debug', (req, res) => {
-  res.json({
-    hasRedisUrl: !!process.env.KV_REST_API_URL,
-    hasRedisToken: !!process.env.KV_REST_API_TOKEN,
-    inMemoryConversations: Object.keys(conversations).length,
-    customers: Object.keys(conversations),
-  });
-});
-
-app.get('/send-report', async (req, res) => {
-  await sendWeeklyReport();
-  res.send('Weekly report sent!');
-});
-
-app.get('/api/conversations', async (req, res) => {
-  try {
-    const keys = await redisListKeys('enog_conv_*');
-    if (!keys.length) return res.json([]);
-    const convs = await Promise.all(keys.map(k => redisLoad(k)));
-    const valid = convs.filter(Boolean).sort((a, b) => (b.lastActive || 0) - (a.lastActive || 0));
-    res.json(valid);
-  } catch (e) {
-    console.error('Get convs error:', e.message);
-    res.json([]);
+      const res = await fetch(`${RAILWAY_URL}/api/conversations`);
+      const data = await res.json();
+      const validData = Array.isArray(data) ? data.filter(c => c && c.id) : [];
+      setConvos(validData);
+      if (selected) {
+        const updated = validData.find(c => c.id === selected.id);
+        if (updated) setSelected(updated);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   }
-});
 
-app.post('/api/conversations/:id/status', async (req, res) => {
-  try {
-    const { status } = req.body;
-    const conv = await redisLoad(req.params.id);
-    if (conv) {
-      conv.status = status;
-      if (status === 'done') conv.unread = 0;
-      await redisSave(req.params.id, conv);
-    }
-    res.json({ success: true });
-  } catch (e) { res.json({ success: false }); }
-});
-
-app.post('/api/reply', async (req, res) => {
-  try {
-    const { to, message, convId } = req.body;
-    const sid = process.env.TWILIO_ACCOUNT_SID;
-    const token = process.env.TWILIO_AUTH_TOKEN;
-    const from = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+2348061511729';
-    await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64') },
-      body: new URLSearchParams({ From: from, To: to, Body: message }).toString(),
-    });
-    const conv = await redisLoad(convId);
-    if (conv) {
-      conv.messages.push({ from: 'business', text: message, time: new Date().toISOString() });
-      conv.status = 'done'; conv.unread = 0;
-      await redisSave(convId, conv);
-    }
-    res.json({ success: true });
-  } catch (e) { res.json({ success: false, error: e.message }); }
-});
-
-app.get('/api/analytics', (req, res) => {
-  res.json({
-    totalMessages: analytics.totalMessages,
-    uniqueCustomers: analytics.uniqueCustomers.size,
-    ordersMentioned: analytics.ordersMentioned,
-    topProducts: getTopItems(analytics.productMentions),
-    busiestDay: getBusiestDay(analytics.dailyMessages),
-    busiestHour: getBusiestHour(analytics.hourlyMessages),
-  });
-});
-
-// ── Main Webhook ──────────────────────────────────────────────────────────────
-app.post('/webhook', async (req, res) => {
-  // ALWAYS respond to Twilio immediately
-  res.status(200).send('OK');
-
-  // Process asynchronously - nothing can block this
-  setImmediate(async () => {
+  async function fetchAnalytics() {
     try {
-      const { Body, From, To, ProfileName, NumMedia, MediaUrl0, MediaContentType0 } = req.body;
-      if (!From || !To) return;
+      const res = await fetch(`${RAILWAY_URL}/api/analytics`);
+      const data = await res.json();
+      setAnalytics(data);
+    } catch (e) {}
+  }
 
-      const customerName = ProfileName || From;
-      console.log(`MSG from ${customerName}: ${Body || '[media]'}`);
+  function showToast(msg, type = "success") {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  }
 
-      const sid = process.env.TWILIO_ACCOUNT_SID;
-      const authToken = process.env.TWILIO_AUTH_TOKEN;
-
-      async function sendWA(text) {
-        await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + Buffer.from(`${sid}:${authToken}`).toString('base64') },
-          body: new URLSearchParams({ From: To, To: From, Body: text }).toString(),
-        });
-      }
-
-      // Handle voice notes
-      if (NumMedia > 0 && MediaContentType0 && MediaContentType0.startsWith('audio')) {
-        await sendWA("Thank you for your voice note 😊 It has been noted and will be passed to our team for review. In the meantime, please type your message so we can attend to you faster!");
-        return;
-      }
-
-      // Handle images
-      let messageContent = Body || '';
-      if (NumMedia > 0 && MediaUrl0 && MediaContentType0 && MediaContentType0.startsWith('image')) {
-        const today = new Date().toISOString().split('T')[0];
-        const imgKey = `${From}_${today}`;
-        imageCounts[imgKey] = (imageCounts[imgKey] || 0) + 1;
-        if (imageCounts[imgKey] > 3) {
-          await sendWA("Thank you for the picture 😊 It has been received and will be reviewed by our team.");
-          return;
-        }
-        messageContent = Body ? `[Customer sent image with caption: "${Body}"]` : "[Customer sent an image]";
-      }
-
-      if (!messageContent) return;
-
-      trackMessage(From, messageContent);
-
-      // Get or rebuild in-memory conversation
-      if (!conversations[From]) {
-        conversations[From] = [];
-        analytics.totalConversations++;
-      }
-
-      const isFirst = conversations[From].length === 0;
-      conversations[From].push({ role: 'user', content: messageContent });
-      if (conversations[From].length > 20) conversations[From] = conversations[From].slice(-20);
-
-      const systemPrompt = `${BUSINESS_PROMPT}
-
-CONVERSATION: ${isFirst ? 'NEW — greet warmly once then ask what they need.' : 'ONGOING — NO greeting at all. Reply directly to what they said.'}`;
-
-      // Call Claude
-      const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 250, system: systemPrompt, messages: conversations[From] }),
+  async function sendReply() {
+    if (!manualMsg.trim() || !selected || sending) return;
+    setSending(true);
+    try {
+      const res = await fetch(`${RAILWAY_URL}/api/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: selected.from, message: manualMsg, convId: selected.id }),
       });
-
-      const aiData = await aiRes.json();
-      const reply = aiData.content?.[0]?.text || "How can I help you? 😊";
-      console.log(`Reply: ${reply}`);
-
-      // Save reply to memory
-      conversations[From].push({ role: 'assistant', content: reply });
-
-      // Send WhatsApp reply FIRST
-      await sendWA(reply);
-      console.log('WhatsApp reply sent!');
-
-      // Save to Redis AFTER sending (non-blocking for dashboard)
-      const redisKey = `enog_conv_${From.replace(/[^a-zA-Z0-9]/g, '_')}`;
-      const existing = await redisLoad(redisKey) || { id: redisKey, from: From, name: customerName, messages: [], status: 'needs_reply', lastActive: Date.now(), unread: 0 };
-      existing.messages.push({ from: 'customer', text: Body || '[Image]', time: new Date().toISOString() });
-      existing.messages.push({ from: 'business', text: reply, time: new Date().toISOString() });
-      existing.lastActive = Date.now();
-      existing.name = customerName;
-      existing.unread = (existing.unread || 0) + 1;
-      existing.status = 'needs_reply';
-      if (existing.messages.length > 100) existing.messages = existing.messages.slice(-100);
-      await redisSave(redisKey, existing);
-
-    } catch (err) {
-      console.error('Webhook error:', err.message);
+      const data = await res.json();
+      if (data.success) {
+        setManualMsg("");
+        showToast("✅ Message sent!");
+        await fetchConversations();
+      } else {
+        showToast("Failed to send message", "error");
+      }
+    } catch (e) {
+      showToast("Error sending message", "error");
     }
-  });
-});
+    setSending(false);
+  }
 
-setInterval(() => {
-  const today = new Date().toISOString().split('T')[0];
-  for (const key in imageCounts) { if (!key.includes(today)) delete imageCounts[key]; }
-}, 3600000);
+  async function updateStatus(convId, status) {
+    try {
+      await fetch(`${RAILWAY_URL}/api/conversations/${convId}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      showToast(`Marked as ${status.replace('_', ' ')}`);
+      await fetchConversations();
+    } catch (e) {}
+  }
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Enog Beauty Castle Agent running on port ${PORT}`);
-  scheduleWeeklyReport();
-});
+  async function toggleAI(convId, paused) {
+    try {
+      await fetch(`${RAILWAY_URL}/api/pause`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ convId, paused }),
+      });
+      showToast(paused ? "🤚 AI paused — you're in control!" : "🤖 AI resumed!");
+      await fetchConversations();
+    } catch (e) {}
+  }
+
+  async function getSummary() {
+    if (!selected || !selected.messages?.length) return;
+    setSummarizing(true);
+    try {
+      const res = await fetch(`${RAILWAY_URL}/api/summarize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: selected.messages }),
+      });
+      const data = await res.json();
+      setSummary(data.summary);
+    } catch (e) {
+      setSummary("Could not generate summary");
+    }
+    setSummarizing(false);
+  }
+
+  function isOlderThan24h(lastActive) {
+    if (!lastActive) return false;
+    return Date.now() - lastActive > 24 * 60 * 60 * 1000;
+  }
+
+  const filtered = convos.filter(c =>
+    (c.name || c.from || "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  const needsReply = convos.filter(c => c.status === "needs_reply").length;
+  const unpaid = convos.filter(c => c.status === "unpaid").length;
+  const done = convos.filter(c => c.status === "done").length;
+
+  function StatusPill({ status }) {
+    const map = {
+      needs_reply: { label: "Needs Reply", color: "#dc2626", bg: "#fff1f1" },
+      follow_up: { label: "Follow Up", color: "#b45309", bg: "#fffbeb" },
+      unpaid: { label: "Unpaid", color: "#7c3aed", bg: "#f5f3ff" },
+      done: { label: "Done ✓", color: "#059669", bg: "#ecfdf5" },
+    };
+    const s = map[status] || map.done;
+    return <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 20, background: s.bg, color: s.color, textTransform: "uppercase" }}>{s.label}</span>;
+  }
+
+  function formatTime(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const now = new Date();
+    const diff = now - d;
+    if (diff < 86400000) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleDateString([], { month: "short", day: "numeric" });
+  }
+
+  return (
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", fontFamily: "Georgia, serif", background: "#fdf6ee" }}>
+      <style>{`* { box-sizing: border-box; margin: 0; padding: 0; } ::-webkit-scrollbar { width: 3px; } ::-webkit-scrollbar-thumb { background: #d4a96a55; border-radius: 4px; } @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } } textarea:focus, input:focus { outline: none !important; }`}</style>
+
+      {toast && (
+        <div style={{ position: "fixed", top: 16, right: 16, zIndex: 9999, padding: "11px 20px", borderRadius: 12, fontWeight: 700, fontSize: 13, color: "#fff", background: toast.type === "error" ? "#991b1b" : "#065f46", boxShadow: "0 8px 32px rgba(0,0,0,0.2)", animation: "fadeUp 0.3s ease" }}>
+          {toast.msg}
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={{ background: "linear-gradient(135deg,#1c0a00,#3b1500,#5a2200)", padding: "0 16px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 58, flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 26 }}>👑</span>
+          <div>
+            <div style={{ color: "#f0cc8a", fontWeight: 700, fontSize: 16 }}>Enog Braid Extensions</div>
+            <div style={{ color: "#d4a96a88", fontSize: 10 }}>Live WhatsApp Dashboard • Auto-refreshes every 10s</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 4 }}>
+          {[{ id: "chats", label: "💬" }, { id: "stats", label: "📊" }].map(t => (
+            <button key={t.id} onClick={() => { setTab(t.id); if (t.id === "stats") fetchAnalytics(); }}
+              style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: tab === t.id ? "rgba(212,169,106,0.2)" : "transparent", color: tab === t.id ? "#f0cc8a" : "#d4a96a66", fontSize: 18, cursor: "pointer" }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {tab === "chats" && (
+        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+          {/* Sidebar */}
+          <div style={{ width: 280, background: "#fff", borderRight: "1px solid #ede5da", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+            <div style={{ padding: 10, borderBottom: "1px solid #f5ede2" }}>
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Search customers..."
+                style={{ width: "100%", padding: "7px 12px", borderRadius: 18, border: "1px solid #ede5da", fontSize: 12, background: "#fdf8f3", color: "#3b1500", fontFamily: "Georgia,serif" }} />
+            </div>
+            <div style={{ flex: 1, overflowY: "auto" }}>
+              {loading && <div style={{ padding: 20, textAlign: "center", color: "#b59a7a", fontSize: 13 }}>Loading...</div>}
+              {!loading && filtered.length === 0 && (
+                <div style={{ padding: 24, textAlign: "center", color: "#b59a7a", fontSize: 13 }}>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>💬</div>
+                  No conversations yet.<br />Messages appear here automatically!
+                </div>
+              )}
+              {filtered.map(c => (
+                <div key={c.id} onClick={() => setSelected(c)}
+                  style={{ padding: "11px 12px", borderBottom: "1px solid #f5ede2", cursor: "pointer", background: selected?.id === c.id ? "#fdf3e7" : "#fff", borderLeft: selected?.id === c.id ? "3px solid #d4a96a" : "3px solid transparent" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 2 }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: "#1c0a00" }}>{c.name || c.from}</div>
+                        {c.aiPaused && <span style={{ fontSize: 9, background: "#fef3c7", color: "#92400e", padding: "1px 5px", borderRadius: 8, fontWeight: 700 }}>AI OFF</span>}
+                      </div>
+                      <StatusPill status={c.status} />
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: 10, color: isOlderThan24h(c.lastActive) ? "#dc2626" : "#b59a7a" }}>
+                        {formatTime(c.lastActive)}
+                      </div>
+                      {c.unread > 0 && <div style={{ width: 18, height: 18, background: "#25d366", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#fff", fontWeight: 800, marginLeft: "auto", marginTop: 3 }}>{c.unread}</div>}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, color: "#b59a7a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {c.messages?.[c.messages.length - 1]?.text || ""}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: "8px 12px", borderTop: "1px solid #f5ede2", display: "flex", justifyContent: "space-around", background: "#fdf8f3" }}>
+              {[{ v: needsReply, l: "Reply", col: "#dc2626" }, { v: unpaid, l: "Unpaid", col: "#7c3aed" }, { v: done, l: "Done", col: "#059669" }].map(s => (
+                <div key={s.l} style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 17, fontWeight: 800, color: s.col }}>{s.v}</div>
+                  <div style={{ fontSize: 9, color: "#b59a7a", fontWeight: 700, textTransform: "uppercase" }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Chat window */}
+          {!selected ? (
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
+              <span style={{ fontSize: 52 }}>👑</span>
+              <div style={{ fontWeight: 700, fontSize: 17, color: "#5a2200" }}>Enog Braid Extensions</div>
+              <div style={{ fontSize: 13, color: "#b59a7a" }}>Select a conversation to view and reply</div>
+              <div style={{ fontSize: 12, color: "#d4a96a" }}>Auto-refreshes every 10 seconds</div>
+            </div>
+          ) : (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              {/* Chat header */}
+              <div style={{ background: "#fff", padding: "10px 16px", borderBottom: "1px solid #ede5da", flexShrink: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 36, height: 36, background: "linear-gradient(135deg,#d4a96a,#f0cc8a)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>👩🏾</div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: "#1c0a00" }}>{selected.name || selected.from}</div>
+                      <div style={{ fontSize: 11, color: "#b59a7a" }}>{selected.from}</div>
+                    </div>
+                  </div>
+                  {/* AI Takeover toggle */}
+                  <button onClick={() => toggleAI(selected.id, !selected.aiPaused)}
+                    style={{ padding: "6px 14px", borderRadius: 20, border: "none", background: selected.aiPaused ? "#dcfce7" : "#fef3c7", color: selected.aiPaused ? "#065f46" : "#92400e", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "Georgia,serif" }}>
+                    {selected.aiPaused ? "🤖 Resume AI" : "🤚 Take Over"}
+                  </button>
+                </div>
+
+                {/* 24h warning */}
+                {isOlderThan24h(selected.lastActive) && (
+                  <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#dc2626", fontWeight: 600 }}>
+                    ⚠️ Last message was over 24 hours ago. Customer must message first before you can reply.
+                  </div>
+                )}
+
+                {/* AI paused warning */}
+                {selected.aiPaused && (
+                  <div style={{ background: "#fefce8", border: "1px solid #fde68a", borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#92400e", fontWeight: 600, marginTop: 6 }}>
+                    🤚 AI is paused — you are handling this conversation manually
+                  </div>
+                )}
+
+                {/* Status buttons */}
+                <div style={{ display: "flex", gap: 5, marginTop: 8, flexWrap: "wrap" }}>
+                  {["needs_reply", "follow_up", "unpaid", "done"].map(s => (
+                    <button key={s} onClick={() => updateStatus(selected.id, s)}
+                      style={{ padding: "3px 8px", borderRadius: 8, border: `1px solid ${selected.status === s ? "#d4a96a" : "#ede5da"}`, background: selected.status === s ? "#fdf3e7" : "#fff", fontSize: 10, fontWeight: 600, color: selected.status === s ? "#5a2200" : "#b59a7a", cursor: "pointer", fontFamily: "Georgia,serif" }}>
+                      {s.replace("_", " ")}
+                    </button>
+                  ))}
+                  <button onClick={getSummary} disabled={summarizing}
+                    style={{ padding: "3px 10px", borderRadius: 8, border: "1px solid #c4b5fd", background: "#f5f3ff", fontSize: 10, fontWeight: 600, color: "#6d28d9", cursor: "pointer", fontFamily: "Georgia,serif" }}>
+                    {summarizing ? "..." : "✨ Summarize"}
+                  </button>
+                </div>
+
+                {/* Summary box */}
+                {summary && (
+                  <div style={{ marginTop: 8, background: "#f5f3ff", border: "1px solid #c4b5fd", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#4c1d95", lineHeight: 1.6 }}>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>✨ Conversation Summary:</div>
+                    <div style={{ whiteSpace: "pre-wrap" }}>{summary}</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Messages */}
+              <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 7, background: "#fdf6ee" }}>
+                {(!selected.messages || selected.messages.length === 0) && (
+                  <div style={{ textAlign: "center", color: "#b59a7a", fontSize: 13, marginTop: 40 }}>No messages yet</div>
+                )}
+                {selected.messages?.map((m, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: m.from === "customer" ? "flex-start" : "flex-end" }}>
+                    <div style={{ maxWidth: "72%", padding: "8px 12px 5px", borderRadius: m.from === "customer" ? "12px 12px 12px 3px" : "12px 12px 3px 12px", background: m.from === "customer" ? "#fff" : "#e7f8d8", fontSize: 13, lineHeight: 1.6, color: "#1c0a00", boxShadow: "0 1px 3px rgba(0,0,0,0.07)", whiteSpace: "pre-wrap" }}>
+                      {m.text}
+                      <div style={{ fontSize: 9, color: "#b59a7a", textAlign: "right", marginTop: 2 }}>{formatTime(m.time)}{m.from === "business" && " ✓✓"}</div>
+                    </div>
+                  </div>
+                ))}
+                <div ref={bottomRef} />
+              </div>
+
+              {/* Reply input */}
+              <div style={{ background: "#fff", borderTop: "1px solid #ede5da", padding: "12px 14px", flexShrink: 0 }}>
+                <div style={{ fontSize: 10, color: selected.aiPaused ? "#92400e" : "#b59a7a", marginBottom: 7, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  {selected.aiPaused ? "🤚 YOU ARE IN CONTROL — AI is paused" : "💬 Reply manually (AI will also respond unless you take over)"}
+                </div>
+                <div style={{ display: "flex", gap: 7, alignItems: "flex-end" }}>
+                  <textarea value={manualMsg} onChange={e => setManualMsg(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendReply(); } }}
+                    placeholder="Type your reply... (Enter to send)"
+                    rows={2}
+                    style={{ flex: 1, padding: "9px 13px", borderRadius: 12, border: "1px solid #ede5da", fontSize: 13, background: "#fdf8f3", color: "#1c0a00", fontFamily: "Georgia,serif", resize: "none" }} />
+                  <button onClick={sendReply} disabled={sending || !manualMsg.trim()}
+                    style={{ width: 42, height: 42, background: sending ? "#e5e7eb" : "#25d366", border: "none", borderRadius: "50%", color: "#fff", fontSize: 18, cursor: sending ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    ➤
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Stats */}
+      {tab === "stats" && (
+        <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: "#1c0a00", marginBottom: 16 }}>📊 Live Analytics</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+            {[
+              { icon: "💬", label: "Total Chats", value: convos.length, col: "#1c0a00" },
+              { icon: "⚡", label: "Need Reply", value: needsReply, col: "#dc2626" },
+              { icon: "💸", label: "Unpaid", value: unpaid, col: "#7c3aed" },
+              { icon: "✅", label: "Done", value: done, col: "#059669" },
+            ].map(s => (
+              <div key={s.label} style={{ background: "#fff", borderRadius: 12, padding: 16, border: "1px solid #ede5da" }}>
+                <div style={{ fontSize: 24, marginBottom: 6 }}>{s.icon}</div>
+                <div style={{ fontSize: 26, fontWeight: 800, color: s.col }}>{s.value}</div>
+                <div style={{ fontSize: 11, color: "#b59a7a" }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+          {analytics && (
+            <div style={{ background: "#fff", borderRadius: 12, padding: 16, border: "1px solid #ede5da", marginBottom: 12 }}>
+              <div style={{ fontWeight: 800, color: "#1c0a00", marginBottom: 12, fontSize: 13 }}>📈 This Week</div>
+              {[
+                { label: "Total Messages", value: analytics.totalMessages },
+                { label: "Unique Customers", value: analytics.uniqueCustomers },
+                { label: "Order Intentions", value: analytics.ordersMentioned },
+                { label: "Top Products", value: analytics.topProducts },
+                { label: "Busiest Day", value: analytics.busiestDay },
+                { label: "Busiest Hour", value: analytics.busiestHour },
+              ].map(s => (
+                <div key={s.label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #fdf6ee", fontSize: 13 }}>
+                  <span style={{ color: "#6b4c2a", fontWeight: 600 }}>{s.label}</span>
+                  <span style={{ color: "#1c0a00", fontWeight: 700 }}>{s.value || "N/A"}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ background: "#fff", borderRadius: 12, padding: 16, border: "1px solid #ede5da" }}>
+            <div style={{ fontWeight: 800, color: "#1c0a00", marginBottom: 10, fontSize: 13 }}>🔗 Quick Links</div>
+            <div style={{ fontSize: 13, color: "#5a2200", lineHeight: 2.2 }}>
+              <div>📱 Business WhatsApp: <strong>+2348061511729</strong></div>
+              <div>📍 Address: <strong>124 Okigwe Road, Owerri</strong></div>
+              <div>🌐 <a href="https://enogbeautycastle.bumpa.shop" target="_blank" rel="noreferrer" style={{ color: "#d4a96a" }}>enogbeautycastle.bumpa.shop</a></div>
+              <div>📸 <a href="https://instagram.com/enogbeautycastle" target="_blank" rel="noreferrer" style={{ color: "#d4a96a" }}>@enogbeautycastle</a></div>
+              <div>📋 <a href="https://wa.me/c/2347034562686" target="_blank" rel="noreferrer" style={{ color: "#d4a96a" }}>View Catalog</a></div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
