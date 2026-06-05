@@ -198,9 +198,20 @@ CUSTOMER TYPES — always identify which type when taking an order:
 ORDER TAKING PROCESS — Follow these steps IN ORDER, one question at a time:
 
 STEP 1 — IDENTIFY CUSTOMER TYPE:
-Ask: "Are you ordering as a regular buyer, wholesaler, marketer, distributor or braider?"
-- Regular buyer → guide to website for 1-3 packs. For 4+ packs they can order on WhatsApp too.
-- Wholesaler/Marketer/Distributor/Braider → take order on WhatsApp with wholesale pricing
+Ask: "Are you ordering as a regular buyer, braider, wholesaler, marketer or distributor?"
+
+CUSTOMER TYPE DEFINITIONS:
+- Regular buyer: buying 1–10 packs for personal use. Can order on website or WhatsApp. No special discount unless they ask — if they ask, connect to manager.
+- Braider: a hair braider who wants trade pricing. They MUST register with management first. Tell them: "To get braider pricing, kindly register with our manager directly: +2347034562686 😊" Do NOT give them wholesale pricing until they confirm they are registered.
+- Wholesaler / Marketer / Distributor: buying in large quantities (20, 50, 100, 500+ packs). Order on WhatsApp with full wholesale pricing tiers.
+
+ESCALATE TO MANAGER when:
+- Customer asks for special discount
+- Customer is a braider wanting to register
+- Customer has a question you cannot answer
+- Customer is upset or has a complaint
+When escalating say: "Let me connect you to our manager right away! +2347034562686 😊 They will attend to you shortly."
+Then internally note: [MANAGER ALERT NEEDED]
 
 STEP 2 — PRODUCT:
 Ask what product they want (French Curls, Italian Curls, Body Wave, Bone Straight, Passion Twist etc.)
@@ -549,6 +560,27 @@ CONVERSATION: ${isFirst ? 'NEW — use the welcome message above then ask how yo
       // Send WhatsApp reply FIRST
       await sendWA(reply);
       console.log('WhatsApp reply sent!');
+
+      // Manager alert — if AI is escalating to manager, notify manager on WhatsApp
+      if (reply.includes('[MANAGER ALERT NEEDED]') || 
+          reply.toLowerCase().includes('connect you to our manager') ||
+          reply.toLowerCase().includes('let me connect you')) {
+        try {
+          const managerNumber = 'whatsapp:+2347034562686';
+          const alertMsg = `🔔 MANAGER ALERT!
+Customer: ${customerName}
+Number: ${From}
+Their message: ${messageContent.substring(0, 150)}
+
+Please follow up with this customer urgently! 🙏`;
+          await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + Buffer.from(`${sid}:${authToken}`).toString('base64') },
+            body: new URLSearchParams({ From: To, To: managerNumber, Body: alertMsg }).toString(),
+          });
+          console.log('Manager alert sent!');
+        } catch (e) { console.error('Manager alert error:', e.message); }
+      }
 
       // Save to Redis for dashboard
       const convData = existingConv || { id: redisKey, from: From, name: customerName, messages: [], status: 'needs_reply', lastActive: Date.now(), unread: 0 };
