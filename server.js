@@ -98,8 +98,17 @@ async function redisGet(key) {
       headers: { Authorization: `Bearer ${token}` }
     });
     const d = await r.json();
-    return d.result ? JSON.parse(d.result) : null;
-  } catch { return null; }
+    if (!d.result) return null;
+    // Parse the result - handle both direct JSON and wrapped {value, ex} format
+    const parsed = JSON.parse(d.result);
+    if (parsed && typeof parsed === 'object' && parsed.value) {
+      return JSON.parse(parsed.value);
+    }
+    return parsed;
+  } catch (e) {
+    console.error('redisGet error:', e.message);
+    return null;
+  }
 }
 
 async function redisLoad(key) {
@@ -115,8 +124,12 @@ async function redisListKeys(pattern) {
       headers: { Authorization: `Bearer ${token}` }
     });
     const d = await r.json();
+    console.log(`Redis keys [${pattern}]:`, d.result?.length || 0);
     return d.result || [];
-  } catch { return []; }
+  } catch (e) {
+    console.error('redisListKeys error:', e.message);
+    return [];
+  }
 }
 
 async function sendWeeklyReport() {
