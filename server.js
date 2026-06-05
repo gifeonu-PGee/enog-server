@@ -187,27 +187,76 @@ BUSINESS INFO:
 - WhatsApp Group: https://chat.whatsapp.com/BCDVSCrDoM76rVJRVT7L9M?mode=gi_t
 
 WELCOME MESSAGE (first message only — use EXACTLY this):
-"Welcome My lover🥰
+"🥰 Welcome My Lover!
 
-HOW TO ORDER:
-1️⃣ Order from our website: https://enogbeautycastle.bumpa.shop
+Thank you for choosing Enog Beauty Castle 🛍️
 
-2️⃣ Send a picture/screenshot and we help you place your order
-Note: Braiders, wholesalers and distributors should order on WhatsApp to get discounted prices. Free delivery for non-regular buyers is only when you meet the MOQ.
+━━━━━━━━━━━━━━━━━━━━━━
+🛍️ HOW TO ORDER
 
-3️⃣ Walk into the shop to place your order.
+1️⃣ Order from our website:
+https://enogbeautycastle.bumpa.shop
 
-Join our WhatsApp and Telegram group for daily updates on discounted prices and trends:
-📱 Telegram: https://t.me/+38SFlrFVZQpjMGFk
-💬 WhatsApp: https://chat.whatsapp.com/BCDVSCrDoM76rVJRVT7L9M?mode=gi_t
+2️⃣ Send a picture/screenshot of the product
+We will help you place your order quickly and smoothly.
+https://wa.me/2348061511729?text=Hello+I+would+like+to+make+an+enquiry.
 
-For fast response, chat us on Instagram and Facebook DM: @enogbeautycastle
-Work hours: 9am–8pm daily
+📌 Note: Braiders, wholesalers, and distributors are advised to order via WhatsApp to enjoy discounted prices.
 
-For deeper enquiries and complaints, write our MD on WhatsApp: wa.me/2347034562686
-This will be responded to within 24 hours 📌
+3️⃣ Walk into our shop to place your order
+📍 124 Okigwe Road, Opp. Imo Girls Secondary School, Owerri
 
-Thanks for patronage 🛍️🛍️🛍️"
+🕘 Business Hours: 9:00 AM – 8:00 PM Daily
+
+━━━━━━━━━━━━━━━━━━━━━━
+🚚 DELIVERY POLICY
+
+📍 OWERRI
+• Free doorstep delivery from 4 pieces and above
+
+📦 NEARBY STATES (Port Harcourt, Aba, Benin, Onitsha etc)
+• Free delivery from 4 pieces and above
+• State pickup center delivery (not doorstep)
+
+🚛 FAR STATES (Lagos, Abuja, Jos, Kaduna etc)
+• Free delivery from 10 pieces and above
+• State pickup centers only
+
+━━━━━━━━━━━━━━━━━━━━━━
+💰 PRICE CATEGORIES
+
+1️⃣ Regular Buyers
+• ₦3,750 (1 Tone) | ₦4,000 (2 Tones) | ₦4,250 (3 Tones)
+
+2️⃣ Braiders
+• ₦3,500 (1 & 2 Tones) | ₦3,750 (3 Tones)
+
+3️⃣ Resellers (50+ pcs)
+• ₦3,250 (1 & 2 Tones) | ₦3,500 (3 Tones)
+
+4️⃣ Wholesalers (200+ pcs)
+• ₦3,000 (1 & 2 Tones) | ₦3,250 (3 Tones)
+
+5️⃣ Distributors (500+ pcs)
+• ₦2,750 (1 & 2 Tones) | ₦3,000 (3 Tones)
+
+6️⃣ Pre-Order (500+ pcs)
+• ₦2,600 (1 & 2 Tones) | ₦2,820 (3 Tones)
+
+━━━━━━━━━━━━━━━━━━━━━━
+📢 JOIN OUR COMMUNITY
+
+📲 Telegram: https://t.me/+38SFlrFVZQpjMGFk
+📲 WhatsApp Group: https://chat.whatsapp.com/BCDVSCrDoM76rVJRVT7L9M
+
+💬 FAST RESPONSE — SEND A DM:
+• Instagram: @enogbeautycastle
+• Facebook: @enogbeautycastle
+
+👩‍💼 Management: +2347034562686
+⏰ Response time: within 24 hours
+
+✨ Thank you for shopping with Enog Beauty Castle 🛍️"
 
 CUSTOMER TYPES — VERY IMPORTANT:
 
@@ -215,7 +264,7 @@ ANYONE can buy on WhatsApp OR walk into the shop. NEVER refuse or redirect anyon
 
 CUSTOMER TYPE DEFINITIONS:
 - Regular buyer: buying for personal use (any quantity 1-10 packs). Can buy on website, WhatsApp or walk-in. Encourage website but ALWAYS sell on WhatsApp if they prefer. Retail pricing applies.
-- Braider (hair braider/stylist): Gets special discounted pricing on ANY quantity but MUST register with management first to get braider ID. Say: "To enjoy braider pricing, register with our manager: +2347034562686 😊 Once registered you get great discounts on any quantity!" Until confirmed registered, use retail pricing.
+- Braider (hair braider/stylist): Gets special discounted pricing. NEVER stop them from buying on WhatsApp. ALWAYS sell to them. Always insist they collect receipt — it qualifies them for end of year appreciation package. For every braider order collect: Full Name, Phone Number, Gmail. To register: contact manager +2347034562686.
 - Wholesaler / Marketer / Distributor: buying 20, 50, 100, 500+ packs. Full wholesale pricing tiers apply. Order on WhatsApp.
 
 ORDER CHANNEL GUIDANCE (suggest, never force):
@@ -371,8 +420,13 @@ Closure: N55,000 (N50,000 from 5 packs+)
 Frontal: N70,000 (N65,000 from 5 packs | N45,000 short frontal)
 Full Head: N100,000 (N90,000 from 5 packs+)
 
-ACCESSORIES:
-Braid Rack (tray & 6 clips): N29,500 | Hair Clips: N1,500 | Ponytails: N15,000
+ACCESSORIES & OTHER PRODUCTS:
+Braided Rack (with tray, 6 clips & 2 combs): N29,500
+Ponytail Extension: N15,000
+Braid Hanger (5 in 1): N2,000
+Human Hair Bow (100g DD): N60,000
+Kinky Bulk (30g): From N25,000 and above
+More products available on website: https://enogbeautycastle.bumpa.shop
 
 ====== WHOLESALE PRICING ======
 
@@ -502,6 +556,49 @@ app.post('/api/broadcast', async (req, res) => {
   }
 });
 
+// New order notification endpoint
+app.get('/api/new-orders', async (req, res) => {
+  try {
+    const keys = await redisListKeys('enog_conv_*');
+    if (!keys.length) return res.json([]);
+    const convs = await Promise.all(keys.map(k => redisLoad(k)));
+    const newOrders = convs.filter(c => c && c.hasNewOrder && !c.orderNotified);
+    res.json(newOrders);
+  } catch (e) { res.json([]); }
+});
+
+app.post('/api/mark-order-notified', async (req, res) => {
+  try {
+    const { convId } = req.body;
+    const conv = await redisLoad(convId);
+    if (conv) {
+      conv.orderNotified = true;
+      await redisSave(convId, conv);
+    }
+    res.json({ success: true });
+  } catch (e) { res.json({ success: false }); }
+});
+
+
+// New order notification
+app.get('/api/new-orders', async (req, res) => {
+  try {
+    const keys = await redisListKeys('enog_conv_*');
+    if (!keys.length) return res.json([]);
+    const convs = await Promise.all(keys.map(k => redisLoad(k)));
+    const newOrders = convs.filter(c => c && c.hasNewOrder && !c.orderNotified);
+    res.json(newOrders);
+  } catch (e) { res.json([]); }
+});
+
+app.post('/api/mark-order-notified', async (req, res) => {
+  try {
+    const { convId } = req.body;
+    const conv = await redisLoad(convId);
+    if (conv) { conv.orderNotified = true; await redisSave(convId, conv); }
+    res.json({ success: true });
+  } catch (e) { res.json({ success: false }); }
+});
 app.get('/api/conversations', async (req, res) => {
   try {
     const keys = await redisListKeys('enog_conv_*');
@@ -722,6 +819,21 @@ Please follow up with this customer urgently! 🙏`;
       convData.unread = (convData.unread || 0) + 1;
       convData.status = 'needs_reply';
       convData.aiPaused = false;
+      if (isNewOrder) {
+        convData.hasNewOrder = true;
+        convData.orderNotified = false;
+        console.log('NEW ORDER from', customerName);
+      }
+      if (isNewOrder) {
+        convData.hasNewOrder = true;
+        convData.orderNotified = false;
+        console.log('NEW ORDER from', customerName);
+      }
+      if (isNewOrder) {
+        convData.hasNewOrder = true;
+        convData.orderNotified = false;
+        console.log('🔔 NEW ORDER DETECTED from', customerName);
+      }
       if (convData.messages.length > 100) convData.messages = convData.messages.slice(-100);
       await redisSave(redisKey, convData);
 
