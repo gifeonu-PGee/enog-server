@@ -619,8 +619,36 @@ app.get('/api/conversations', async (req, res) => {
   try {
     const keys = await redisListKeys('enog_conv_*');
     if (!keys.length) return res.json([]);
-    const convs = await Promise.all(keys.map(k => redisLoad(k)));
+    
+    // Load all conversations and unwrap any nested formats
+    const convs = await Promise.all(keys.map(async k => {
+      try {
+        const url = process.env.KV_REST_API_URL;
+        const token = process.env.KV_REST_API_TOKEN;
+        const r = await fetch(`${url}/get/${k}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const d = await r.json();
+        if (!d.result) return null;
+        
+        let parsed = JSON.parse(d.result);
+        
+        // Handle wrapped format: {value: "...", ex: 604800}
+        if (parsed && parsed.value && typeof parsed.value === 'string') {
+          parsed = JSON.parse(parsed.value);
+        }
+        
+        // Validate it's a real conversation
+        if (!parsed || !parsed.id || !parsed.from) return null;
+        return parsed;
+      } catch (e) {
+        console.error('Error loading key', k, e.message);
+        return null;
+      }
+    }));
+    
     const valid = convs.filter(Boolean).sort((a, b) => (b.lastActive || 0) - (a.lastActive || 0));
+    console.log(`Returning ${valid.length} conversations`);
     res.json(valid);
   } catch (e) {
     console.error('Get convs error:', e.message);
