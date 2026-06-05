@@ -1,11 +1,15 @@
 {
-  "name": "enog-beauty-castle-server",
+  "name": "enog-braid-extensions-server",
   "version": "1.0.0",
+  "description": "WhatsApp AI Agent for Enog Braid Extensions",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
