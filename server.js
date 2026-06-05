@@ -713,9 +713,10 @@ async function sendFollowUps() {
     const keys = await redisListKeys('enog_conv_*');
     if (!keys.length) return;
     const now = Date.now();
+    const oneHour = 1 * 60 * 60 * 1000;
+    const threeHours = 3 * 60 * 60 * 1000;
     const twoHours = 2 * 60 * 60 * 1000;
     const sixHours = 6 * 60 * 60 * 1000;
-    const threeHours = 3 * 60 * 60 * 1000;
     const twentyFourHours = 24 * 60 * 60 * 1000;
     for (const key of keys) {
       const conv = await redisLoad(key);
@@ -731,9 +732,9 @@ async function sendFollowUps() {
         msg = followUpCount === 0
           ? "Hi! 😊 Just checking on your order — were you able to make the payment? Let me know if you need the account details again!"
           : "Hello! Your order is still pending payment. Kindly complete payment so we can process it. Need help? Contact manager: +2347034562686";
-      } else if (conv.status === 'needs_reply' && timeSince > twoHours && followUpCount === 0) {
+      } else if (conv.status === 'needs_reply' && timeSince > oneHour && followUpCount === 0) {
         msg = "Hi! 😊 Just checking in — have you made a decision on what to order? We are here to help!";
-      } else if (conv.status === 'needs_reply' && timeSince > sixHours && followUpCount === 1) {
+      } else if (conv.status === 'needs_reply' && timeSince > threeHours && followUpCount === 1) {
         msg = "Hello! We are still here if you have questions 😊 You can also speak with our manager: +2347034562686 or visit: enogbeautycastle.bumpa.shop";
       }
       if (msg) {
