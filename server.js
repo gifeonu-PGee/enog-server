@@ -529,4 +529,57 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Enog Braid Extensions Agent running on port ${PORT}`);
   scheduleWeeklyReport();
+  setInterval(sendFollowUps, 30 * 60 * 1000);
+  console.log('Follow-up scheduler started');
 });
+
+// ── Auto Follow-up System ─────────────────────────────────────────────────────
+async function sendFollowUps() {
+  try {
+    const keys = await redisListKeys('enog_conv_*');
+    if (!keys.length) return;
+    const now = Date.now();
+    const twoHours = 2 * 60 * 60 * 1000;
+    const sixHours = 6 * 60 * 60 * 1000;
+    const threeHours = 3 * 60 * 60 * 1000;
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    for (const key of keys) {
+      const conv = await redisLoad(key);
+      if (!conv || !conv.from || !conv.messages?.length) continue;
+      if (conv.aiPaused || conv.status === 'done') continue;
+      const lastMsg = conv.messages[conv.messages.length - 1];
+      if (lastMsg.from === 'business') continue;
+      if (now - conv.lastActive > twentyFourHours) continue;
+      const timeSince = now - conv.lastActive;
+      const followUpCount = conv.followUpCount || 0;
+      let msg = null;
+      if (conv.status === 'unpaid' && timeSince > threeHours && followUpCount < 2) {
+        msg = followUpCount === 0
+          ? "Hi! 😊 Just checking on your order — were you able to make the payment? Let me know if you need the account details again!"
+          : "Hello! Your order is still pending payment. Kindly complete payment so we can process it. Need help? Contact manager: +2347034562686";
+      } else if (conv.status === 'needs_reply' && timeSince > twoHours && followUpCount === 0) {
+        msg = "Hi! 😊 Just checking in — have you made a decision on what to order? We are here to help!";
+      } else if (conv.status === 'needs_reply' && timeSince > sixHours && followUpCount === 1) {
+        msg = "Hello! We are still here if you have questions 😊 You can also speak with our manager: +2347034562686 or visit: enogbeautycastle.bumpa.shop";
+      }
+      if (msg) {
+        try {
+          const sid = process.env.TWILIO_ACCOUNT_SID;
+          const token = process.env.TWILIO_AUTH_TOKEN;
+          const from = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+2348061511729';
+          await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64') },
+            body: new URLSearchParams({ From: from, To: conv.from, Body: msg }).toString(),
+          });
+          conv.messages.push({ from: 'business', text: msg, time: new Date().toISOString() });
+          conv.followUpCount = followUpCount + 1;
+          conv.lastActive = now;
+          await redisSave(key, conv);
+          if (conversations[conv.from]) conversations[conv.from].push({ role: 'assistant', content: msg });
+          console.log(`Follow-up sent to ${conv.name || conv.from}`);
+        } catch (e) { console.error('Follow-up send error:', e.message); }
+      }
+    }
+  } catch (e) { console.error('Follow-up error:', e.message); }
+}
