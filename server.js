@@ -77,11 +77,13 @@ async function redisSave(key, value) {
     const url = process.env.KV_REST_API_URL;
     const token = process.env.KV_REST_API_TOKEN;
     if (!url || !token) return;
-    await fetch(`${url}/set/${encodeURIComponent(key)}`, {
+    const r = await fetch(`${url}/set/${key}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ value: JSON.stringify(value), ex: 604800 })
     });
+    const d = await r.json();
+    console.log(`Redis save [${key}]:`, d.result);
   } catch (e) { console.error('Redis save error:', e.message); }
 }
 
@@ -90,7 +92,7 @@ async function redisLoad(key) {
     const url = process.env.KV_REST_API_URL;
     const token = process.env.KV_REST_API_TOKEN;
     if (!url || !token) return null;
-    const r = await fetch(`${url}/get/${encodeURIComponent(key)}`, {
+    const r = await fetch(`${url}/get/${key}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     const d = await r.json();
@@ -264,7 +266,7 @@ ANYONE can buy on WhatsApp OR walk into the shop. NEVER refuse or redirect anyon
 
 CUSTOMER TYPE DEFINITIONS:
 - Regular buyer: buying for personal use (any quantity 1-10 packs). Can buy on website, WhatsApp or walk-in. Encourage website but ALWAYS sell on WhatsApp if they prefer. Retail pricing applies.
-- Braider (hair braider/stylist): Gets special discounted pricing. NEVER stop them from buying on WhatsApp. ALWAYS sell to them. Always insist they collect receipt — it qualifies them for end of year appreciation package. For every braider order collect: Full Name, Phone Number, Gmail. To register: contact manager +2347034562686.
+- Braider (hair braider/stylist): Gets special discounted pricing. NEVER stop them from buying on WhatsApp. ALWAYS sell to them. No registration needed — just attend to them normally with braider pricing. Always insist they collect receipt — it qualifies them for end of year appreciation package. For every braider order collect: Full Name, Phone Number, Gmail.
 - Wholesaler / Marketer / Distributor: buying 20, 50, 100, 500+ packs. Full wholesale pricing tiers apply. Order on WhatsApp.
 
 ORDER CHANNEL GUIDANCE (suggest, never force):
