@@ -384,6 +384,87 @@ app.get('/send-report', async (req, res) => {
   res.send('Weekly report sent!');
 });
 
+
+// ── Broadcast Messages ────────────────────────────────────────────────────────
+app.post('/api/broadcast', async (req, res) => {
+  try {
+    const { message, filter } = req.body;
+    if (!message) return res.json({ success: false, error: 'No message provided' });
+
+    const keys = await redisListKeys('enog_conv_*');
+    if (!keys.length) return res.json({ success: true, sent: 0, message: 'No conversations found' });
+
+    const convs = await Promise.all(keys.map(k => redisLoad(k)));
+    const valid = convs.filter(Boolean);
+
+    // Filter by status if specified
+    let targets = valid;
+    if (filter && filter !== 'all') {
+      targets = valid.filter(c => c.status === filter);
+    }
+
+    // Only send to customers within 24 hour window
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const reachable = targets.filter(c => c.from && (now - (c.lastActive || 0)) < twentyFourHours);
+
+    const sid = process.env.TWILIO_ACCOUNT_SID;
+    const token = process.env.TWILIO_AUTH_TOKEN;
+    const from = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+2348061511729';
+
+    let sent = 0;
+    let failed = 0;
+    const results = [];
+
+    for (const conv of reachable) {
+      try {
+        await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64')
+          },
+          body: new URLSearchParams({ From: from, To: conv.from, Body: message }).toString(),
+        });
+
+        // Save to conversation history
+        conv.messages = conv.messages || [];
+        conv.messages.push({ from: 'business', text: message, time: new Date().toISOString() });
+        conv.lastActive = now;
+        await redisSave(`enog_conv_${conv.from.replace(/[^a-zA-Z0-9]/g, '_')}`, conv);
+
+        // Update in-memory
+        if (conversations[conv.from]) {
+          conversations[conv.from].push({ role: 'assistant', content: message });
+        }
+
+        sent++;
+        results.push({ name: conv.name || conv.from, status: 'sent' });
+        console.log(`Broadcast sent to ${conv.name || conv.from}`);
+
+        // Small delay to avoid Twilio rate limits
+        await new Promise(r => setTimeout(r, 200));
+      } catch (e) {
+        failed++;
+        results.push({ name: conv.name || conv.from, status: 'failed', error: e.message });
+        console.error(`Broadcast failed for ${conv.from}:`, e.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      sent,
+      failed,
+      skipped: targets.length - reachable.length,
+      total: targets.length,
+      results
+    });
+  } catch (e) {
+    console.error('Broadcast error:', e.message);
+    res.json({ success: false, error: e.message });
+  }
+});
+
 app.get('/api/conversations', async (req, res) => {
   try {
     const keys = await redisListKeys('enog_conv_*');
