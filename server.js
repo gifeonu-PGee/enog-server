@@ -408,12 +408,12 @@ PACKS NEEDED: Shoulder: 2 | Bra length: 3 | Waist: 5 | Hip: 5–6
 
 DISTRIBUTORS: Looking for distributors in all states. MOQ 500 pieces. Direct to +2347034562686.
 CATALOG & PICTURES:
-When customer asks to see pictures, images, or catalog of any product, send BOTH links:
-"You can view all our products and pictures here:
+When customer asks to see pictures, images, or sends a picture asking about colors/styles, ALWAYS send BOTH links:
+"For best color selection and to see all available styles clearly, please check:
 🛍️ Website: https://enogbeautycastle.bumpa.shop
 📱 WhatsApp Catalog: https://wa.me/c/2347034562686
 
-You can browse all styles, colors and sizes there! 😊"
+You can browse all our products, colors and styles there! 😊"
 
 ====== PRODUCTS & PRICING ======
 
