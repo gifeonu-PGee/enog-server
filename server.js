@@ -394,12 +394,13 @@ PAYMENT:
 - After payment, customer sends receipt to confirm order
 
 DELIVERY:
-- Within Owerri: FREE, same day / 24 hours, doorstep delivery
-- Outside Owerri (4+ packs from website): FREE, 48–72 hours to pickup center in customer's state
-- Lagos & Abuja: 10+ packs for free delivery to pickup center
+- Owerri (Imo State): FREE doorstep delivery, same day/24 hours — from 4 pcs
+- Southeast & Rivers States (Abia, Anambra, Ebonyi, Enugu, Imo, Rivers): FREE to pickup center — from 4 pcs, 48-72 hours. NOT doorstep — pickup center only
+- All other Nigerian states (Lagos, Abuja, Jos, Kano, Kaduna, Benin, Delta, Port Harcourt etc): FREE to pickup center — from 10 pcs only, 48-72 hours. Less than 10 pcs = customer pays delivery
 - International: charges apply, 7–14 days
 - Couriers: GIG, GUO, FedEx, Dispatch riders
-- NOTE: Free delivery outside Owerri is to pickup center in their state, NOT doorstep
+- NOTE: Outside Owerri delivery is to pickup center only, NOT doorstep
+- ALWAYS ask customer's state to give correct delivery terms!
 
 RETURN POLICY: 100% refund if item doesn't match quality. Report immediately on delivery.
 
