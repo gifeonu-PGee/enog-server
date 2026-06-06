@@ -32,40 +32,6 @@ async function uploadToCloudinary(base64Data, mimeType) {
   }
 }
 
-// Cloudinary config
-const CLOUDINARY_CLOUD = 'dtxhvyyzw';
-const CLOUDINARY_KEY = '244212828577965';
-const CLOUDINARY_SECRET = 'wpukE-7uNviIXD0Ue7Dy5JVQlrc';
-
-async function uploadToCloudinary(base64Data, mimeType) {
-  const dataUri = `data:${mimeType};base64,${base64Data}`;
-  const formData = new URLSearchParams();
-  formData.append('file', dataUri);
-  formData.append('upload_preset', 'ml_default');
-  
-  // Use signed upload
-  const timestamp = Math.round(Date.now() / 1000);
-  const crypto = require('crypto');
-  const signature = crypto.createHash('sha1')
-    .update(`timestamp=${timestamp}${CLOUDINARY_SECRET}`)
-    .digest('hex');
-  
-  const body = new URLSearchParams({
-    file: dataUri,
-    timestamp: timestamp.toString(),
-    api_key: CLOUDINARY_KEY,
-    signature: signature,
-  });
-
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
-    method: 'POST',
-    body: body,
-  });
-  const data = await res.json();
-  console.log('Cloudinary upload result:', JSON.stringify(data).substring(0, 100));
-  return data.secure_url || null;
-}
-
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
