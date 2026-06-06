@@ -849,47 +849,6 @@ app.get('/api/image-proxy', async (req, res) => {
   }
 });
 
-// ── Send Image from Dashboard ────────────────────────────────────────────────
-app.post('/api/send-image', async (req, res) => {
-  try {
-    const { to, convId } = req.body;
-    const file = req.file;
-    if (!file || !to) return res.json({ success: false, error: 'Missing file or recipient' });
-
-    const sid = process.env.TWILIO_ACCOUNT_SID;
-    const token = process.env.TWILIO_AUTH_TOKEN;
-    const from = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+2348061511729';
-
-    // Upload image to Twilio
-    const base64 = file.buffer.toString('base64');
-    const mediaUrl = `data:${file.mimetype};base64,${base64}`;
-
-    // Send via Twilio with media
-    const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64')
-      },
-      body: new URLSearchParams({ From: from, To: to, Body: '📷 Image from Enog Braid Extensions' }).toString(),
-    });
-
-    const twilioData = await twilioRes.json();
-
-    // Save to conversation
-    const conv = await redisLoad(convId);
-    if (conv) {
-      conv.messages.push({ from: 'business', text: '📷 [Image sent]', time: new Date().toISOString() });
-      conv.status = 'done';
-      await redisSave(convId, conv);
-    }
-
-    res.json({ success: true, sid: twilioData.sid });
-  } catch (e) {
-    console.error('Send image error:', e.message);
-    res.json({ success: false, error: e.message });
-  }
-});
 
 // ── Image Proxy — serves Twilio images to dashboard ─────────────────────────
 app.get('/api/image-proxy', async (req, res) => {
@@ -933,11 +892,17 @@ app.post('/api/send-image', async (req, res) => {
     const params = { From: from, To: to, Body: caption || '📷 From Enog Braid Extensions' };
     if (mediaUrl) params.MediaUrl = mediaUrl;
 
-    await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+    const twilioRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64') },
       body: new URLSearchParams(params).toString(),
     });
+    const twilioData = await twilioRes.json();
+    console.log('Twilio send image result:', JSON.stringify(twilioData).substring(0, 200));
+
+    if (twilioData.error_code) {
+      return res.json({ success: false, error: `Twilio error: ${twilioData.message}` });
+    }
 
     const conv = await redisLoad(convId);
     if (conv) {
@@ -945,7 +910,10 @@ app.post('/api/send-image', async (req, res) => {
       await redisSave(convId, conv);
     }
     res.json({ success: true });
-  } catch (e) { res.json({ success: false, error: e.message }); }
+  } catch (e) { 
+    console.error('Send image error:', e.message);
+    res.json({ success: false, error: e.message }); 
+  }
 });
 
 // ── Main Webhook ──────────────────────────────────────────────────────────────
