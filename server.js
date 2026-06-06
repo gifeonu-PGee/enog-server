@@ -781,19 +781,24 @@ app.post('/api/send-image', async (req, res) => {
 // ── Send Image from Dashboard ────────────────────────────────────────────────
 app.post('/api/send-image', async (req, res) => {
   try {
-    const { to, convId, caption } = req.body;
+    const { to, convId, caption, mediaUrl } = req.body;
     if (!to) return res.json({ success: false, error: 'Missing recipient' });
     const sid = process.env.TWILIO_ACCOUNT_SID;
     const token = process.env.TWILIO_AUTH_TOKEN;
     const from = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+2348061511729';
+
+    const params = { From: from, To: to, Body: caption || '📷 From Enog Braid Extensions' };
+    if (mediaUrl) params.MediaUrl = mediaUrl;
+
     await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64') },
-      body: new URLSearchParams({ From: from, To: to, Body: caption || '📷 Image from Enog Braid Extensions' }).toString(),
+      body: new URLSearchParams(params).toString(),
     });
+
     const conv = await redisLoad(convId);
     if (conv) {
-      conv.messages.push({ from: 'business', text: `📷 ${caption || '[Image sent]'}`, time: new Date().toISOString() });
+      conv.messages.push({ from: 'business', text: `📷 [Image sent] ${caption || ''}`, time: new Date().toISOString() });
       await redisSave(convId, conv);
     }
     res.json({ success: true });
