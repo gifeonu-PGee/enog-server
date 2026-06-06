@@ -190,6 +190,10 @@ RULES:
 - Ask only 1 question per reply
 - Sound like a real person texting, NOT a bot
 - NEVER greet mid-conversation
+- Be VERY respectful and polite — Nigerians love respect. Use "ma", "sir", "dear" naturally
+- Be warm and persuasive — always find a reason to keep the conversation going
+- If conversation gets complicated, confusing or customer is very difficult → escalate to manager immediately
+- When customer sends a picture of a hairstyle or color they want → advise them to visit the website for excellent color selection: https://enogbeautycastle.bumpa.shop
 
 BUSINESS INFO:
 - Business Name: Enog Braid Extensions
@@ -365,8 +369,8 @@ Please confirm this is correct!"
 STEP 8 — PAYMENT:
 Once confirmed, send payment details:
 "✅ Order confirmed! Please make payment to:
-🏦 Moniepoint: 5057191869 — Enog Braid Extensions
-🏦 UBA: 1025287966 — Enog Braid Extensions
+🏦 Moniepoint: 5057191869 — Enog Beauty Castle
+🏦 UBA: 1025287966 — Enog Beauty Castle
 After payment, please send your receipt here to confirm your order. 🙏"
 
 STEP 9 — RECEIPT CONFIRMATION:
@@ -379,7 +383,7 @@ If customer asks for discount → "Kindly speak with our manager directly for sp
 MOQ FOR DISTRIBUTORS: 500 pieces minimum. Direct to manager: +2347034562686
 
 PAYMENT:
-- Moniepoint: 5057191869 — Enog Braid Extensions
+- Moniepoint: 5057191869 — Enog Beauty Castle (Bank: Moniepoint)
 - UBA: 1025287966 — Enog Braid Extensions
 - After payment, customer sends receipt to confirm order
 
@@ -870,7 +874,7 @@ app.post('/webhook', async (req, res) => {
                 role: 'user',
                 content: [
                   { type: 'image', source: { type: 'base64', media_type: contentType, data: base64Img } },
-                  { type: 'text', text: 'This image was sent by a customer to a hair extensions shop. Describe what you see in 1-2 sentences, focusing on: is it a hairstyle they want? A payment receipt? A product question? A complaint about an order? Be brief and specific.' }
+                  { type: 'text', text: 'This image was sent by a customer to a hair extensions shop called Enog Beauty Castle. Describe what you see in 1-2 sentences. Is it a hairstyle they want? A payment receipt? A product they are asking about? A complaint? Be brief and specific.' }
                 ]
               }]
             })
