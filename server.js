@@ -784,11 +784,11 @@ app.get('/api/analytics', (req, res) => {
   });
 });
 // ── Cloudinary Upload Endpoint ───────────────────────────────────────────────
-app.post('/api/upload-image', express.raw({ type: '*/*', limit: '10mb' }), async (req, res) => {
+app.post('/api/upload-image', async (req, res) => {
   try {
-    const mimeType = req.headers['x-mime-type'] || 'image/jpeg';
-    const base64Data = Buffer.from(req.body).toString('base64');
-    const url = await uploadToCloudinary(base64Data, mimeType);
+    const { base64Data, mimeType } = req.body;
+    if (!base64Data) return res.json({ success: false, error: 'No image data' });
+    const url = await uploadToCloudinary(base64Data, mimeType || 'image/jpeg');
     if (url) res.json({ success: true, url });
     else res.json({ success: false, error: 'Upload failed' });
   } catch (e) {
