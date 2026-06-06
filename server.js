@@ -1,5 +1,70 @@
 const express = require('express');
 const app = express();
+const crypto = require('crypto');
+
+// Cloudinary credentials
+const CLOUDINARY_CLOUD = 'dtxhvyyzw';
+const CLOUDINARY_KEY = '244212828577965';
+const CLOUDINARY_SECRET = 'wpukE-7uNviIXD0Ue7Dy5JVQlrc';
+
+async function uploadToCloudinary(base64Data, mimeType) {
+  try {
+    const timestamp = Math.round(Date.now() / 1000);
+    const signature = crypto.createHash('sha1')
+      .update(`timestamp=${timestamp}${CLOUDINARY_SECRET}`)
+      .digest('hex');
+    const body = new URLSearchParams({
+      file: `data:${mimeType};base64,${base64Data}`,
+      timestamp: timestamp.toString(),
+      api_key: CLOUDINARY_KEY,
+      signature: signature,
+    });
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
+      method: 'POST',
+      body: body,
+    });
+    const data = await res.json();
+    console.log('Cloudinary upload:', data.secure_url ? 'SUCCESS' : 'FAILED', data.error?.message || '');
+    return data.secure_url || null;
+  } catch (e) {
+    console.error('Cloudinary error:', e.message);
+    return null;
+  }
+}
+
+// Cloudinary config
+const CLOUDINARY_CLOUD = 'dtxhvyyzw';
+const CLOUDINARY_KEY = '244212828577965';
+const CLOUDINARY_SECRET = 'wpukE-7uNviIXD0Ue7Dy5JVQlrc';
+
+async function uploadToCloudinary(base64Data, mimeType) {
+  const dataUri = `data:${mimeType};base64,${base64Data}`;
+  const formData = new URLSearchParams();
+  formData.append('file', dataUri);
+  formData.append('upload_preset', 'ml_default');
+  
+  // Use signed upload
+  const timestamp = Math.round(Date.now() / 1000);
+  const crypto = require('crypto');
+  const signature = crypto.createHash('sha1')
+    .update(`timestamp=${timestamp}${CLOUDINARY_SECRET}`)
+    .digest('hex');
+  
+  const body = new URLSearchParams({
+    file: dataUri,
+    timestamp: timestamp.toString(),
+    api_key: CLOUDINARY_KEY,
+    signature: signature,
+  });
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
+    method: 'POST',
+    body: body,
+  });
+  const data = await res.json();
+  console.log('Cloudinary upload result:', JSON.stringify(data).substring(0, 100));
+  return data.secure_url || null;
+}
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -753,6 +818,36 @@ app.get('/api/analytics', (req, res) => {
   });
 });
 
+// ── Cloudinary Upload from Dashboard ─────────────────────────────────────────
+app.post('/api/upload-image', express.raw({ type: 'application/octet-stream', limit: '10mb' }), async (req, res) => {
+  try {
+    const mimeType = req.headers['x-mime-type'] || 'image/jpeg';
+    const base64Data = req.body.toString('base64');
+    const url = await uploadToCloudinary(base64Data, mimeType);
+    if (url) {
+      res.json({ success: true, url });
+    } else {
+      res.json({ success: false, error: 'Upload failed' });
+    }
+  } catch (e) {
+    console.error('Upload error:', e.message);
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// ── Cloudinary Upload Endpoint ───────────────────────────────────────────────
+app.post('/api/upload-image', express.raw({ type: '*/*', limit: '10mb' }), async (req, res) => {
+  try {
+    const mimeType = req.headers['x-mime-type'] || 'image/jpeg';
+    const base64Data = Buffer.from(req.body).toString('base64');
+    const url = await uploadToCloudinary(base64Data, mimeType);
+    if (url) res.json({ success: true, url });
+    else res.json({ success: false, error: 'Upload failed' });
+  } catch (e) {
+    res.json({ success: false, error: e.message });
+  }
+});
+
 // ── Image Proxy — serves Twilio images to dashboard ─────────────────────────
 app.get('/api/image-proxy', async (req, res) => {
   try {
@@ -780,6 +875,23 @@ app.get('/api/image-proxy', async (req, res) => {
   } catch (e) {
     console.error('Image proxy error:', e.message);
     res.status(500).send('Error');
+  }
+});
+
+// ── Cloudinary Upload from Dashboard ─────────────────────────────────────────
+app.post('/api/upload-image', express.raw({ type: 'application/octet-stream', limit: '10mb' }), async (req, res) => {
+  try {
+    const mimeType = req.headers['x-mime-type'] || 'image/jpeg';
+    const base64Data = req.body.toString('base64');
+    const url = await uploadToCloudinary(base64Data, mimeType);
+    if (url) {
+      res.json({ success: true, url });
+    } else {
+      res.json({ success: false, error: 'Upload failed' });
+    }
+  } catch (e) {
+    console.error('Upload error:', e.message);
+    res.json({ success: false, error: e.message });
   }
 });
 
@@ -843,6 +955,23 @@ app.post('/api/send-image', async (req, res) => {
     res.json({ success: true, sid: twilioData.sid });
   } catch (e) {
     console.error('Send image error:', e.message);
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// ── Cloudinary Upload from Dashboard ─────────────────────────────────────────
+app.post('/api/upload-image', express.raw({ type: 'application/octet-stream', limit: '10mb' }), async (req, res) => {
+  try {
+    const mimeType = req.headers['x-mime-type'] || 'image/jpeg';
+    const base64Data = req.body.toString('base64');
+    const url = await uploadToCloudinary(base64Data, mimeType);
+    if (url) {
+      res.json({ success: true, url });
+    } else {
+      res.json({ success: false, error: 'Upload failed' });
+    }
+  } catch (e) {
+    console.error('Upload error:', e.message);
     res.json({ success: false, error: e.message });
   }
 });
