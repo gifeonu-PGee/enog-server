@@ -850,7 +850,41 @@ app.post('/webhook', async (req, res) => {
           await sendWA("Thank you for the picture 😊 It has been received and will be reviewed by our team.");
           return;
         }
-        messageContent = Body ? `[Customer sent image with caption: "${Body}"]` : "[Customer sent an image]";
+        // Use Claude to read/analyze the image
+        try {
+          const imgRes = await fetch(MediaUrl0, {
+            headers: { Authorization: 'Basic ' + Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64') }
+          });
+          const imgBuffer = await imgRes.arrayBuffer();
+          const base64Img = Buffer.from(imgBuffer).toString('base64');
+          const contentType = MediaContentType0 || 'image/jpeg';
+
+          // Ask Claude what's in the image
+          const visionRes = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+            body: JSON.stringify({
+              model: 'claude-sonnet-4-20250514',
+              max_tokens: 200,
+              messages: [{
+                role: 'user',
+                content: [
+                  { type: 'image', source: { type: 'base64', media_type: contentType, data: base64Img } },
+                  { type: 'text', text: 'This image was sent by a customer to a hair extensions shop. Describe what you see in 1-2 sentences, focusing on: is it a hairstyle they want? A payment receipt? A product question? A complaint about an order? Be brief and specific.' }
+                ]
+              }]
+            })
+          });
+          const visionData = await visionRes.json();
+          const imgDescription = visionData.content?.[0]?.text || 'an image';
+          messageContent = Body 
+            ? `[Customer sent an image with caption: "${Body}". Image shows: ${imgDescription}]`
+            : `[Customer sent an image. Image shows: ${imgDescription}]`;
+          console.log('Image analyzed:', imgDescription);
+        } catch (imgErr) {
+          console.error('Image analysis error:', imgErr.message);
+          messageContent = Body ? `[Customer sent image with caption: "${Body}"]` : "[Customer sent an image]";
+        }
       }
 
       if (!messageContent) return;
