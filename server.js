@@ -396,7 +396,13 @@ RETURN POLICY: 100% refund if item doesn't match quality. Report immediately on 
 PACKS NEEDED: Shoulder: 2 | Bra length: 3 | Waist: 5 | Hip: 5–6
 
 DISTRIBUTORS: Looking for distributors in all states. MOQ 500 pieces. Direct to +2347034562686.
-CATALOG: https://wa.me/c/2347034562686
+CATALOG & PICTURES:
+When customer asks to see pictures, images, or catalog of any product, send BOTH links:
+"You can view all our products and pictures here:
+🛍️ Website: https://enogbeautycastle.bumpa.shop
+📱 WhatsApp Catalog: https://wa.me/c/2347034562686
+
+You can browse all styles, colors and sizes there! 😊"
 
 ====== PRODUCTS & PRICING ======
 
