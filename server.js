@@ -783,24 +783,6 @@ app.get('/api/analytics', (req, res) => {
     busiestHour: getBusiestHour(analytics.hourlyMessages),
   });
 });
-
-// ── Cloudinary Upload from Dashboard ─────────────────────────────────────────
-app.post('/api/upload-image', express.raw({ type: 'application/octet-stream', limit: '10mb' }), async (req, res) => {
-  try {
-    const mimeType = req.headers['x-mime-type'] || 'image/jpeg';
-    const base64Data = req.body.toString('base64');
-    const url = await uploadToCloudinary(base64Data, mimeType);
-    if (url) {
-      res.json({ success: true, url });
-    } else {
-      res.json({ success: false, error: 'Upload failed' });
-    }
-  } catch (e) {
-    console.error('Upload error:', e.message);
-    res.json({ success: false, error: e.message });
-  }
-});
-
 // ── Cloudinary Upload Endpoint ───────────────────────────────────────────────
 app.post('/api/upload-image', express.raw({ type: '*/*', limit: '10mb' }), async (req, res) => {
   try {
@@ -810,6 +792,7 @@ app.post('/api/upload-image', express.raw({ type: '*/*', limit: '10mb' }), async
     if (url) res.json({ success: true, url });
     else res.json({ success: false, error: 'Upload failed' });
   } catch (e) {
+    console.error('Upload error:', e.message);
     res.json({ success: false, error: e.message });
   }
 });
@@ -844,24 +827,7 @@ app.get('/api/image-proxy', async (req, res) => {
   }
 });
 
-// ── Cloudinary Upload from Dashboard ─────────────────────────────────────────
-app.post('/api/upload-image', express.raw({ type: 'application/octet-stream', limit: '10mb' }), async (req, res) => {
-  try {
-    const mimeType = req.headers['x-mime-type'] || 'image/jpeg';
-    const base64Data = req.body.toString('base64');
-    const url = await uploadToCloudinary(base64Data, mimeType);
-    if (url) {
-      res.json({ success: true, url });
-    } else {
-      res.json({ success: false, error: 'Upload failed' });
-    }
-  } catch (e) {
-    console.error('Upload error:', e.message);
-    res.json({ success: false, error: e.message });
-  }
-});
-
-// ── Image Proxy — serves Twilio images to dashboard ─────────────────────────
+// ── Image Proxy ──────────────────────────────────────────────────────────────
 app.get('/api/image-proxy', async (req, res) => {
   try {
     const { url } = req.query;
@@ -921,23 +887,6 @@ app.post('/api/send-image', async (req, res) => {
     res.json({ success: true, sid: twilioData.sid });
   } catch (e) {
     console.error('Send image error:', e.message);
-    res.json({ success: false, error: e.message });
-  }
-});
-
-// ── Cloudinary Upload from Dashboard ─────────────────────────────────────────
-app.post('/api/upload-image', express.raw({ type: 'application/octet-stream', limit: '10mb' }), async (req, res) => {
-  try {
-    const mimeType = req.headers['x-mime-type'] || 'image/jpeg';
-    const base64Data = req.body.toString('base64');
-    const url = await uploadToCloudinary(base64Data, mimeType);
-    if (url) {
-      res.json({ success: true, url });
-    } else {
-      res.json({ success: false, error: 'Upload failed' });
-    }
-  } catch (e) {
-    console.error('Upload error:', e.message);
     res.json({ success: false, error: e.message });
   }
 });
