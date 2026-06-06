@@ -300,7 +300,13 @@ PERSUASION — When customer seems hesitant or about to leave, NEVER just say go
 - Guarantee: "100% quality guarantee — full refund if it doesn't match what we described!"
 - Keep going: Always ask one more question. "What is your budget?" or "Which style interests you most?"
 
-CLOSING MESSAGE (when customer says goodbye, thank you, or conversation is ending — use EXACTLY this):
+CLOSING MESSAGE RULES:
+- Do NOT send closing message just because customer says "bye" or "thank you" — that sounds robotic
+- ONLY send closing message when the 24-hour conversation window is about to expire (last 2 hours)
+- In normal conversations, just respond naturally when customer says bye/thanks
+- The closing message is reserved for when you need to remind customer to stay connected before the window closes
+
+CLOSING MESSAGE (only when 24hr window is almost expired — use EXACTLY this):
 "Thank you for your time my lover🥰
 Remember to join our WhatsApp and Telegram group for daily updates on discounted prices and trends:
 📱 Telegram: https://t.me/+38SFlrFVZQpjMGFk
@@ -1035,6 +1041,22 @@ async function sendFollowUps() {
         msg = "Hi! 😊 Just checking in — have you made a decision on what to order? We are here to help!";
       } else if (conv.status === 'needs_reply' && timeSince > threeHours && followUpCount === 1) {
         msg = "Hello! We are still here if you have questions 😊 You can also speak with our manager: +2347034562686 or visit: enogbeautycastle.bumpa.shop";
+      } else if (timeSince > 22 * 60 * 60 * 1000 && followUpCount < 3) {
+        // 24hr window almost expired — send closing message
+        msg = `Thank you for your time my lover🥰
+Remember to join our WhatsApp and Telegram group for daily updates on discounted prices and trends:
+📱 Telegram: https://t.me/+38SFlrFVZQpjMGFk
+💬 WhatsApp: https://chat.whatsapp.com/BCDVSCrDoM76rVJRVT7L9M?mode=gi_t
+
+For fast response, chat us on Instagram and Facebook DM: @enogbeautycastle
+Work hours: 9am–8pm daily
+
+For deeper enquiries and complaints, write our MD on WhatsApp: wa.me/2347034562686
+This will be responded to within 24 hours 📌
+
+We will meet again when you are ready to order again ma🥰🥰
+Your customer attendant,
+Chioma`;
       }
       if (msg) {
         try {
