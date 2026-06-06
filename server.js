@@ -737,7 +737,7 @@ app.get('/api/analytics', (req, res) => {
 });
 
 // ── Send Image from Dashboard ────────────────────────────────────────────────
-app.post('/api/send-image', upload.single('file'), async (req, res) => {
+app.post('/api/send-image', async (req, res) => {
   try {
     const { to, convId } = req.body;
     const file = req.file;
