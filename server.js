@@ -1,4 +1,3 @@
-
 const express = require('express');
 const app = express();
 
@@ -754,6 +753,58 @@ app.get('/api/analytics', (req, res) => {
   });
 });
 
+// ── Image Proxy — serves Twilio images to dashboard ─────────────────────────
+app.get('/api/image-proxy', async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url) return res.status(400).send('No URL');
+    
+    const sid = process.env.TWILIO_ACCOUNT_SID;
+    const token = process.env.TWILIO_AUTH_TOKEN;
+    
+    const imgRes = await fetch(url, {
+      headers: {
+        Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64')
+      }
+    });
+    
+    if (!imgRes.ok) return res.status(404).send('Image not found');
+    
+    const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+    const buffer = await imgRes.arrayBuffer();
+    
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.send(Buffer.from(buffer));
+  } catch (e) {
+    console.error('Image proxy error:', e.message);
+    res.status(500).send('Error');
+  }
+});
+
+// ── Image Proxy — serves Twilio images to dashboard ─────────────────────────
+app.get('/api/image-proxy', async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url) return res.status(400).send('No URL');
+    const sid = process.env.TWILIO_ACCOUNT_SID;
+    const token = process.env.TWILIO_AUTH_TOKEN;
+    const imgRes = await fetch(url, {
+      headers: { Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64') }
+    });
+    if (!imgRes.ok) return res.status(404).send('Not found');
+    const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+    const buffer = await imgRes.arrayBuffer();
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.send(Buffer.from(buffer));
+  } catch (e) {
+    res.status(500).send('Error');
+  }
+});
+
 // ── Send Image from Dashboard ────────────────────────────────────────────────
 app.post('/api/send-image', async (req, res) => {
   try {
@@ -793,6 +844,36 @@ app.post('/api/send-image', async (req, res) => {
   } catch (e) {
     console.error('Send image error:', e.message);
     res.json({ success: false, error: e.message });
+  }
+});
+
+// ── Image Proxy — serves Twilio images to dashboard ─────────────────────────
+app.get('/api/image-proxy', async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url) return res.status(400).send('No URL');
+    
+    const sid = process.env.TWILIO_ACCOUNT_SID;
+    const token = process.env.TWILIO_AUTH_TOKEN;
+    
+    const imgRes = await fetch(url, {
+      headers: {
+        Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64')
+      }
+    });
+    
+    if (!imgRes.ok) return res.status(404).send('Image not found');
+    
+    const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+    const buffer = await imgRes.arrayBuffer();
+    
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.send(Buffer.from(buffer));
+  } catch (e) {
+    console.error('Image proxy error:', e.message);
+    res.status(500).send('Error');
   }
 });
 
@@ -982,11 +1063,18 @@ Please follow up with this customer urgently! 🙏`;
       // Save to Redis for dashboard
       const convData = existingConv || { id: redisKey, from: From, name: customerName, messages: [], status: 'needs_reply', lastActive: Date.now(), unread: 0 };
       const isImageMsg = NumMedia > 0 && MediaContentType0 && MediaContentType0.startsWith('image');
+      
+      // For images, use our proxy endpoint so dashboard can display them
+      let imageUrl = null;
+      if (isImageMsg && MediaUrl0) {
+        imageUrl = `https://enog-server-production.up.railway.app/api/image-proxy?url=${encodeURIComponent(MediaUrl0)}`;
+      }
+      
       convData.messages.push({ 
         from: 'customer', 
-        text: messageContent === Body ? messageContent : '[Image]', 
+        text: messageContent === Body ? messageContent : '📷 Image',
         time: new Date().toISOString(),
-        imageUrl: isImageMsg ? MediaUrl0 : null,
+        imageUrl: imageUrl,
         imageType: isImageMsg ? MediaContentType0 : null
       });
       convData.messages.push({ from: 'business', text: reply, time: new Date().toISOString() });
