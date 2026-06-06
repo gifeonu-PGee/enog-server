@@ -1,3 +1,4 @@
+
 const express = require('express');
 const app = express();
 
@@ -896,6 +897,10 @@ app.post('/webhook', async (req, res) => {
           console.error('Image analysis error:', imgErr.message);
           messageContent = Body ? `[Customer sent image with caption: "${Body}"]` : "[Customer sent an image]";
         }
+        // Save image URL so dashboard can display it
+        if (!conversations[From]) conversations[From] = [];
+        conversations[From]._lastImageUrl = MediaUrl0;
+        conversations[From]._lastImageType = MediaContentType0;
       }
 
       if (!messageContent) return;
@@ -976,7 +981,14 @@ Please follow up with this customer urgently! 🙏`;
 
       // Save to Redis for dashboard
       const convData = existingConv || { id: redisKey, from: From, name: customerName, messages: [], status: 'needs_reply', lastActive: Date.now(), unread: 0 };
-      convData.messages.push({ from: 'customer', text: messageContent === Body ? messageContent : '[Image]', time: new Date().toISOString() });
+      const isImageMsg = NumMedia > 0 && MediaContentType0 && MediaContentType0.startsWith('image');
+      convData.messages.push({ 
+        from: 'customer', 
+        text: messageContent === Body ? messageContent : '[Image]', 
+        time: new Date().toISOString(),
+        imageUrl: isImageMsg ? MediaUrl0 : null,
+        imageType: isImageMsg ? MediaContentType0 : null
+      });
       convData.messages.push({ from: 'business', text: reply, time: new Date().toISOString() });
       convData.lastActive = Date.now();
       convData.name = customerName;
