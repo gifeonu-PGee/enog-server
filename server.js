@@ -1121,8 +1121,10 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Enog Braid Extensions Agent running on port ${PORT}`);
   scheduleWeeklyReport();
-  setInterval(sendFollowUps, 30 * 60 * 1000);
-  console.log('Follow-up scheduler started');
+  setInterval(sendFollowUps, 15 * 60 * 1000); // Check every 15 minutes
+  console.log('Follow-up scheduler started — checking every 15 minutes');
+  // Run immediately on startup to catch any missed follow-ups
+  setTimeout(sendFollowUps, 5000);
 });
 
 // ── Auto Follow-up System ─────────────────────────────────────────────────────
@@ -1150,21 +1152,39 @@ async function sendFollowUps() {
         msg = followUpCount === 0
           ? "Hi! 😊 Just checking on your order — were you able to make the payment? Let me know if you need the account details again!"
           : "Hello! Your order is still pending payment. Kindly complete payment so we can process it. Need help? Contact manager: +2347034562686";
-      } else if (conv.status === 'needs_reply' && timeSince > oneHour && followUpCount === 0) {
-        msg = "Hi! 😊 Just checking in — have you made a decision on what to order? We are here to help!";
-      } else if (conv.status === 'needs_reply' && timeSince > threeHours && followUpCount === 1) {
-        msg = "Hello! We are still here if you have questions 😊 You can also speak with our manager: +2347034562686 or visit: enogbeautycastle.bumpa.shop";
+      } else if (timeSince > oneHour && timeSince < 3 * 60 * 60 * 1000 && followUpCount === 0) {
+        // First follow-up after 1 hour
+        msg = `Good day ma 😊
+Are you ready to place your order?
+
+Remember it's free delivery to your location and we sell the best quality, coupled with our refund package. You don't want to miss out my lover🥰
+
+You can always visit our website:
+
+As a Regular buyer 👉 https://enogbeautycastle.bumpa.shop
+
+While distributors, wholesalers and marketers can order here on WhatsApp to get a discount 🛍️🛍️🛍️`;
+      } else if (timeSince > 3 * 60 * 60 * 1000 && timeSince < 6 * 60 * 60 * 1000 && followUpCount === 1) {
+        // Second follow-up after 3 hours
+        msg = `Hello ma 🥰 We are still here to help you place your order!
+
+Our extensions are the best quality in the market with 100% refund guarantee if it doesn't match what we described.
+
+Feel free to speak with our manager directly: +2347034562686 😊
+
+Or visit: https://enogbeautycastle.bumpa.shop`;
       } else if (timeSince > 22 * 60 * 60 * 1000 && followUpCount < 3) {
-        // 24hr window almost expired — send closing message
+        // Closing message — 2 hours before 24hr window expires
         msg = `Thank you for your time my lover🥰
+
 Remember to join our WhatsApp and Telegram group for daily updates on discounted prices and trends:
 📱 Telegram: https://t.me/+38SFlrFVZQpjMGFk
-💬 WhatsApp: https://chat.whatsapp.com/BCDVSCrDoM76rVJRVT7L9M?mode=gi_t
+💬 WhatsApp: https://chat.whatsapp.com/BCDVSCrDoM76rVJRVT7L9M
 
 For fast response, chat us on Instagram and Facebook DM: @enogbeautycastle
 Work hours: 9am–8pm daily
 
-For deeper enquiries and complaints, write our MD on WhatsApp: wa.me/2347034562686
+For deeper enquiries, write our MD on WhatsApp: wa.me/2347034562686
 This will be responded to within 24 hours 📌
 
 We will meet again when you are ready to order again ma🥰🥰
@@ -1183,7 +1203,7 @@ Chioma`;
           });
           conv.messages.push({ from: 'business', text: msg, time: new Date().toISOString() });
           conv.followUpCount = followUpCount + 1;
-          conv.lastActive = now;
+          // Don't update lastActive — keep original customer's last message time for timer tracking
           await redisSave(key, conv);
           if (conversations[conv.from]) conversations[conv.from].push({ role: 'assistant', content: msg });
           console.log(`Follow-up sent to ${conv.name || conv.from}`);
