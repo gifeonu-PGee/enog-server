@@ -1173,8 +1173,16 @@ Our extensions are the best quality in the market with 100% refund guarantee if 
 Feel free to speak with our manager directly: +2347034562686 😊
 
 Or visit: https://enogbeautycastle.bumpa.shop`;
-      } else if (timeSince > 22 * 60 * 60 * 1000 && followUpCount < 3) {
-        // Closing message — 2 hours before 24hr window expires
+      } else if (timeSince > 20 * 60 * 60 * 1000 && timeSince < 22 * 60 * 60 * 1000 && followUpCount < 3) {
+        // 4 hour warning before 24hr window expires
+        msg = `Hello my lover 🥰 Just a gentle reminder that our conversation window will close in a few hours.
+
+If you have any pending questions or would like to place an order, please do so now so we can attend to you properly.
+
+We are here for you! 😊
+Your customer attendant, Chioma`;
+      } else if (timeSince > 22 * 60 * 60 * 1000 && followUpCount < 4) {
+        // Final closing message — 2 hours before 24hr window expires
         msg = `Thank you for your time my lover🥰
 
 Remember to join our WhatsApp and Telegram group for daily updates on discounted prices and trends:
