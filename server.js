@@ -426,7 +426,7 @@ PAYMENT:
 
 DELIVERY:
 - Owerri (Imo State): FREE doorstep delivery, same day/24 hours — from 4 pcs
-- Southeast & Rivers States (Abia, Anambra, Ebonyi, Enugu, Imo, Rivers, Port Harcourt): FREE to pickup center — from 5 pcs minimum, 48-72 hours. NOT doorstep — pickup center only. Less than 5 pcs = customer pays delivery
+- Southeast & Rivers States (Abia, Anambra, Ebonyi, Enugu, Imo, Rivers, Port Harcourt): FREE to pickup center — from 4 pcs minimum, 48-72 hours. NOT doorstep — pickup center only. Less than 4 pcs = customer pays delivery
 - All other Nigerian states (Lagos, Abuja, Jos, Kano, Kaduna, Benin, Delta etc): FREE to pickup center — from 12 pcs minimum, 48-72 hours. Less than 12 pcs = customer pays delivery
 - International: charges apply, 7–14 days
 - Couriers: GIG, GUO, FedEx, Dispatch riders
