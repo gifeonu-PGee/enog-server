@@ -224,12 +224,12 @@ RULES:
 - Be VERY respectful and polite — Nigerians love respect. Use "ma", "sir", "dear" naturally
 - Be warm and persuasive — always find a reason to keep the conversation going
 - If conversation gets complicated, confusing or customer is very difficult → escalate to manager immediately
-- When customer sends a picture of a hairstyle or color they want → advise them to visit the website for excellent color selection: https://enogbeautycastle.bumpa.shop
+- When customer sends a picture of a hairstyle or color they want → advise them to visit the website for excellent color selection: https://enogbeautycastle.bumpa.shop/
 
 BUSINESS INFO:
 - Business Name: Enog Braid Extensions
 - Address: 124 Okigwe Road, Owerri, Imo State, Nigeria
-- Website: https://enogbeautycastle.bumpa.shop (always send as clickable link)
+- Website: https://enogbeautycastle.bumpa.shop/ (always send as clickable link)
 - Instagram & Facebook: @enogbeautycastle
 - Manager WhatsApp: wa.me/2347034562686
 - Work Hours: 9am–8pm daily
@@ -246,7 +246,7 @@ Thank you for choosing Enog Beauty Castle 🛍️
 🛍️ HOW TO ORDER
 
 1️⃣ Order from our website:
-https://enogbeautycastle.bumpa.shop
+https://enogbeautycastle.bumpa.shop/
 
 2️⃣ Send a picture/screenshot of the product
 We will help you place your order quickly and smoothly.
@@ -426,8 +426,8 @@ PAYMENT:
 
 DELIVERY:
 - Owerri (Imo State): FREE doorstep delivery, same day/24 hours — from 4 pcs
-- Southeast & Rivers States (Abia, Anambra, Ebonyi, Enugu, Imo, Rivers): FREE to pickup center — from 4 pcs, 48-72 hours. NOT doorstep — pickup center only
-- All other Nigerian states (Lagos, Abuja, Jos, Kano, Kaduna, Benin, Delta, Port Harcourt etc): FREE to pickup center — from 10 pcs only, 48-72 hours. Less than 10 pcs = customer pays delivery
+- Southeast & Rivers States (Abia, Anambra, Ebonyi, Enugu, Imo, Rivers, Port Harcourt): FREE to pickup center — from 5 pcs minimum, 48-72 hours. NOT doorstep — pickup center only. Less than 5 pcs = customer pays delivery
+- All other Nigerian states (Lagos, Abuja, Jos, Kano, Kaduna, Benin, Delta etc): FREE to pickup center — from 12 pcs minimum, 48-72 hours. Less than 12 pcs = customer pays delivery
 - International: charges apply, 7–14 days
 - Couriers: GIG, GUO, FedEx, Dispatch riders
 - NOTE: Outside Owerri delivery is to pickup center only, NOT doorstep
@@ -441,7 +441,7 @@ DISTRIBUTORS: Looking for distributors in all states. MOQ 500 pieces. Direct to 
 CATALOG & PICTURES:
 When customer asks to see pictures, images, or sends a picture asking about colors/styles, ALWAYS send BOTH links:
 "For best color selection and to see all available styles clearly, please check:
-🛍️ Website: https://enogbeautycastle.bumpa.shop
+🛍️ Website: https://enogbeautycastle.bumpa.shop/
 📱 WhatsApp Catalog: https://wa.me/c/2347034562686
 
 You can browse all our products, colors and styles there! 😊"
@@ -490,7 +490,7 @@ Ponytail Extension: N15,000
 Braid Hanger (5 in 1): N2,000
 Human Hair Bow (100g DD): N60,000
 Kinky Bulk (30g): From N25,000 and above
-More products available on website: https://enogbeautycastle.bumpa.shop
+More products available on website: https://enogbeautycastle.bumpa.shop/
 
 ====== WHOLESALE PRICING ======
 
@@ -1161,7 +1161,7 @@ Remember it's free delivery to your location and we sell the best quality, coupl
 
 You can always visit our website:
 
-As a Regular buyer 👉 https://enogbeautycastle.bumpa.shop
+As a Regular buyer 👉 https://enogbeautycastle.bumpa.shop/
 
 While distributors, wholesalers and marketers can order here on WhatsApp to get a discount 🛍️🛍️🛍️`;
       } else if (timeSince > 3 * 60 * 60 * 1000 && timeSince < 6 * 60 * 60 * 1000 && followUpCount === 1) {
@@ -1172,7 +1172,7 @@ Our extensions are the best quality in the market with 100% refund guarantee if 
 
 Feel free to speak with our manager directly: +2347034562686 😊
 
-Or visit: https://enogbeautycastle.bumpa.shop`;
+Or visit: https://enogbeautycastle.bumpa.shop/`;
       } else if (timeSince > 20 * 60 * 60 * 1000 && timeSince < 22 * 60 * 60 * 1000 && followUpCount < 3) {
         // 4 hour warning before 24hr window expires
         msg = `Hello my lover 🥰 Just a gentle reminder that our conversation window will close in a few hours.
