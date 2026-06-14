@@ -234,8 +234,8 @@ BUSINESS INFO:
 - Manager WhatsApp: wa.me/2347034562686
 - Work Hours: 9am–8pm daily
 - Report Line: 07034562686 | Email: enogbeatycatle@gmail.com
-- Telegram Group: https://t.me/+38SFlrFVZQpjMGFk
-- WhatsApp Group: https://chat.whatsapp.com/BCDVSCrDoM76rVJRVT7L9M?mode=gi_t
+- Telegram Group: https://t.me/enogbeautycastle
+- WhatsApp Group: https://whatsapp.com/channel/0029VbCmuhSAYlURfxNoOr22
 
 WELCOME MESSAGE (first message only — use EXACTLY this):
 "🥰 Welcome My Lover!
@@ -296,9 +296,10 @@ https://wa.me/2348061511729?text=Hello+I+would+like+to+make+an+enquiry.
 
 ━━━━━━━━━━━━━━━━━━━━━━
 📢 JOIN OUR COMMUNITY
+Drop shippers, distributors, regular buyers and anyone who wants the latest updates on prices and deals — join us:
 
-📲 Telegram: https://t.me/+38SFlrFVZQpjMGFk
-📲 WhatsApp Group: https://chat.whatsapp.com/BCDVSCrDoM76rVJRVT7L9M
+📲 Telegram: https://t.me/enogbeautycastle
+📲 WhatsApp Channel: https://whatsapp.com/channel/0029VbCmuhSAYlURfxNoOr22
 
 💬 FAST RESPONSE — SEND A DM:
 • Instagram: @enogbeautycastle
@@ -339,9 +340,9 @@ CLOSING MESSAGE RULES:
 
 CLOSING MESSAGE (only when 24hr window is almost expired — use EXACTLY this):
 "Thank you for your time my lover🥰
-Remember to join our WhatsApp and Telegram group for daily updates on discounted prices and trends:
-📱 Telegram: https://t.me/+38SFlrFVZQpjMGFk
-💬 WhatsApp: https://chat.whatsapp.com/BCDVSCrDoM76rVJRVT7L9M?mode=gi_t
+Remember to join our WhatsApp Channel and Telegram for daily updates on discounted prices and trends — perfect for drop shippers, distributors and regular buyers:
+📱 Telegram: https://t.me/enogbeautycastle
+💬 WhatsApp Channel: https://whatsapp.com/channel/0029VbCmuhSAYlURfxNoOr22
 
 For fast response, chat us on Instagram and Facebook DM: @enogbeautycastle
 Work hours: 9am–8pm daily
@@ -1185,9 +1186,9 @@ Your customer attendant, Chioma`;
         // Final closing message — 2 hours before 24hr window expires
         msg = `Thank you for your time my lover🥰
 
-Remember to join our WhatsApp and Telegram group for daily updates on discounted prices and trends:
-📱 Telegram: https://t.me/+38SFlrFVZQpjMGFk
-💬 WhatsApp: https://chat.whatsapp.com/BCDVSCrDoM76rVJRVT7L9M
+Remember to join our WhatsApp Channel and Telegram for daily updates on discounted prices and trends — perfect for drop shippers, distributors and regular buyers:
+📱 Telegram: https://t.me/enogbeautycastle
+💬 WhatsApp Channel: https://whatsapp.com/channel/0029VbCmuhSAYlURfxNoOr22
 
 For fast response, chat us on Instagram and Facebook DM: @enogbeautycastle
 Work hours: 9am–8pm daily
