@@ -816,7 +816,7 @@ app.post('/api/summarize', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5',
         max_tokens: 200,
         system: 'Summarize this WhatsApp conversation in 3-4 bullet points. Focus on: what the customer wants, any products discussed, pricing discussed, current status (ordered/paid/pending/browsing). Be brief and clear.',
         messages: [{ role: 'user', content: transcript }]
@@ -1023,7 +1023,7 @@ app.post('/webhook', async (req, res) => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
             body: JSON.stringify({
-              model: 'claude-sonnet-4-20250514',
+              model: 'claude-sonnet-4-5',
               max_tokens: 200,
               messages: [{
                 role: 'user',
@@ -1092,12 +1092,15 @@ CONVERSATION: ${isFirst ? 'NEW — use the welcome message above then ask how yo
       const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 300, system: systemPrompt, messages: conversations[From] }),
+        body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 300, system: systemPrompt, messages: conversations[From] }),
       });
 
       const aiData = await aiRes.json();
+      if (aiData.error) {
+        console.error('Claude API error:', JSON.stringify(aiData.error));
+      }
       const reply = aiData.content?.[0]?.text || "How can I help you? 😊";
-      console.log(`Reply: ${reply}`);
+      console.log(`Reply: ${reply.substring(0, 80)}`);
 
       conversations[From].push({ role: 'assistant', content: reply });
 
