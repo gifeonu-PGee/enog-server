@@ -1070,14 +1070,22 @@ app.post('/webhook', async (req, res) => {
       }
 
       // Get or rebuild in-memory conversation
+      // Only rebuild from Redis if conversation is recent (within 24 hours)
+      const twentyFourHours = 24 * 60 * 60 * 1000;
+      const isRecentConv = existingConv && existingConv.lastActive && 
+                           (Date.now() - existingConv.lastActive) < twentyFourHours;
+
       if (!conversations[From]) {
-        if (existingConv && existingConv.messages) {
+        if (isRecentConv && existingConv.messages && existingConv.messages.length > 0) {
+          // Recent conversation — rebuild memory from Redis
           conversations[From] = existingConv.messages.slice(-20)
             .map(m => ({ role: m.from === 'customer' ? 'user' : 'assistant', content: m.text }))
             .filter(m => m.content && !m.content.startsWith('[Voice'));
+          console.log(`Rebuilt memory for ${customerName}: ${conversations[From].length} messages`);
         } else {
+          // New or expired conversation — start fresh
           conversations[From] = [];
-          analytics.totalConversations++;
+          if (!existingConv) analytics.totalConversations++;
         }
       }
 
