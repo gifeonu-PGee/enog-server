@@ -113,11 +113,28 @@ async function redisSave(key, value) {
     const r = await fetch(`${url}/pipeline`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify([["SET", key, serialized, "EX", "604800"]])
+      body: JSON.stringify([["SET", key, serialized, "EX", "1814400"]]) // 21 days
     });
     const d = await r.json();
     console.log(`Redis save [${key}]: ${JSON.stringify(d)}`);
   } catch (e) { console.error('Redis save error:', e.message); }
+}
+
+// Save contact permanently (no expiry) — for customer database
+async function saveContact(phone, name) {
+  try {
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    if (!url || !token) return;
+    const contactKey = `enog_contact_${phone.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    const contactData = JSON.stringify({ phone, name, firstSeen: new Date().toISOString() });
+    // No EX = never expires
+    await fetch(`${url}/pipeline`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify([["SET", contactKey, contactData]])
+    });
+  } catch (e) { console.error('Save contact error:', e.message); }
 }
 
 async function redisGet(key) {
@@ -664,6 +681,42 @@ app.post('/api/mark-order-notified', async (req, res) => {
     res.json({ success: true });
   } catch (e) { res.json({ success: false }); }
 });
+app.get('/api/contacts', async (req, res) => {
+  try {
+    const keys = await redisListKeys('enog_contact_*');
+    if (!keys.length) return res.json([]);
+    const contacts = await Promise.all(keys.map(async k => {
+      try {
+        const url = process.env.KV_REST_API_URL;
+        const token = process.env.KV_REST_API_TOKEN;
+        const r = await fetch(`${url}/get/${k}`, { headers: { Authorization: `Bearer ${token}` } });
+        const d = await r.json();
+        return d.result ? JSON.parse(d.result) : null;
+      } catch { return null; }
+    }));
+    const valid = contacts.filter(Boolean).sort((a,b) => new Date(b.firstSeen) - new Date(a.firstSeen));
+    res.json(valid);
+  } catch (e) { res.json([]); }
+});
+
+app.get('/api/contacts', async (req, res) => {
+  try {
+    const keys = await redisListKeys('enog_contact_*');
+    if (!keys.length) return res.json([]);
+    const contacts = await Promise.all(keys.map(async k => {
+      try {
+        const url = process.env.KV_REST_API_URL;
+        const token = process.env.KV_REST_API_TOKEN;
+        const r = await fetch(`${url}/get/${k}`, { headers: { Authorization: `Bearer ${token}` } });
+        const d = await r.json();
+        return d.result ? JSON.parse(d.result) : null;
+      } catch { return null; }
+    }));
+    const valid = contacts.filter(Boolean).sort((a,b) => new Date(b.firstSeen) - new Date(a.firstSeen));
+    res.json(valid);
+  } catch (e) { res.json([]); }
+});
+
 app.get('/api/conversations', async (req, res) => {
   try {
     const keys = await redisListKeys('enog_conv_*');
