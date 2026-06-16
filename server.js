@@ -248,7 +248,7 @@ BUSINESS INFO:
 - Address: 124 Okigwe Road, Owerri, Imo State, Nigeria
 - Website: https://enogbeautycastle.bumpa.shop/ (always send as clickable link)
 - Instagram & Facebook: @enogbeautycastle
-- Manager WhatsApp: wa.me/2347034562686
+- Manager WhatsApp: wa.me/2348156394852
 - Work Hours: 9am–8pm daily
 - Report Line: 07034562686 | Email: enogbeatycatle@gmail.com
 - Telegram Group: https://t.me/enogbeautycastle
@@ -322,7 +322,7 @@ Drop shippers, distributors, regular buyers and anyone who wants the latest upda
 • Instagram: @enogbeautycastle
 • Facebook: @enogbeautycastle
 
-👩‍💼 Management: +2347034562686
+👩‍💼 Management: +2348156394852
 ⏰ Response time: within 24 hours
 
 ✨ Thank you for shopping with Enog Beauty Castle 🛍️"
@@ -364,7 +364,7 @@ Remember to join our WhatsApp Channel and Telegram for daily updates on discount
 For fast response, chat us on Instagram and Facebook DM: @enogbeautycastle
 Work hours: 9am–8pm daily
 
-For deeper enquiries and complaints, write our MD on WhatsApp: wa.me/2347034562686
+For deeper enquiries and complaints, write our MD on WhatsApp: wa.me/2348156394852
 This will be responded to within 24 hours 📌
 
 We will meet again when you are ready to order again ma🥰🥰
@@ -372,7 +372,7 @@ Your customer attendant,
 Chioma"
 
 DISTRIBUTOR/MARKETER RECRUITMENT — mention this when relevant:
-"💰 You can make great money selling Enog Braid Extensions! We offer drop shipping, marketer and distributor opportunities. We also teach everything about braid extensions from sourcing to final sales. Chat our manager on +2347034562686 to join our marketers/drop shippers training! 😊"
+"💰 You can make great money selling Enog Braid Extensions! We offer drop shipping, marketer and distributor opportunities. We also teach everything about braid extensions from sourcing to final sales. Chat our manager on +2348156394852 to join our marketers/drop shippers training! 😊"
 
 ORDER TAKING PROCESS — Follow these steps IN ORDER, one question at a time:
 
@@ -384,7 +384,7 @@ ESCALATE TO MANAGER when:
 - Braider wants to register
 - Question you cannot answer
 - Customer is upset or has a complaint
-Say: "Let me connect you to our manager right away! +2347034562686 😊 They will attend to you shortly."
+Say: "Let me connect you to our manager right away! +2348156394852 😊 They will attend to you shortly."
 Then internally note: [MANAGER ALERT NEEDED]
 
 STEP 2 — PRODUCT:
@@ -433,9 +433,9 @@ When customer sends receipt/payment proof:
 "Thank you! 🎉 Your payment has been received. Your order is being processed and will be delivered within [timeframe]. We will keep you updated!"
 
 DISCOUNT REQUESTS:
-If customer asks for discount → "Kindly speak with our manager directly for special pricing: +2347034562686 😊"
+If customer asks for discount → "Kindly speak with our manager directly for special pricing: +2348156394852 😊"
 
-MOQ FOR DISTRIBUTORS: 500 pieces minimum. Direct to manager: +2347034562686
+MOQ FOR DISTRIBUTORS: 500 pieces minimum. Direct to manager: +2348156394852
 
 PAYMENT:
 - Moniepoint: 5057191869 — Enog Beauty Castle (Bank: Moniepoint)
@@ -455,12 +455,12 @@ RETURN POLICY: 100% refund if item doesn't match quality. Report immediately on 
 
 PACKS NEEDED: Shoulder: 2 | Bra length: 3 | Waist: 5 | Hip: 5–6
 
-DISTRIBUTORS: Looking for distributors in all states. MOQ 500 pieces. Direct to +2347034562686.
+DISTRIBUTORS: Looking for distributors in all states. MOQ 500 pieces. Direct to +2348156394852.
 CATALOG & PICTURES:
 When customer asks to see pictures, images, or sends a picture asking about colors/styles, ALWAYS send BOTH links:
 "For best color selection and to see all available styles clearly, please check:
 🛍️ Website: https://enogbeautycastle.bumpa.shop/
-📱 WhatsApp Catalog: https://wa.me/c/2347034562686
+📱 WhatsApp Catalog: https://wa.me/c/2348156394852
 
 You can browse all our products, colors and styles there! 😊"
 
@@ -1053,7 +1053,7 @@ They have sent a payment receipt. Please verify and process their order immediat
                 await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + Buffer.from(`${sid}:${authToken}`).toString('base64') },
-                  body: new URLSearchParams({ From: To, To: 'whatsapp:+2347034562686', Body: alertMsg }).toString(),
+                  body: new URLSearchParams({ From: To, To: 'whatsapp:+2348156394852', Body: alertMsg }).toString(),
                 });
                 console.log('Manager alerted of payment receipt!');
               } catch(e) { console.error('Manager alert error:', e.message); }
@@ -1118,48 +1118,38 @@ They have sent a payment receipt. Please verify and process their order immediat
 
         const welcomeMsg = `${greeting}
 
-🥰 Welcome My Lover!
-
-Thank you for choosing Enog Beauty Castle 🛍️
+Thank you for contacting us. We are your trusted supplier of quality braiding hair, curls, twists, braided wigs, human hair braid extensions, and beauty accessories.
 
 🛍️ HOW TO ORDER
 
-1️⃣ Order from our website:
+✅ Order from our website:
 https://enogbeautycastle.bumpa.shop/
 
-2️⃣ Send a picture/screenshot of the product
-We will help you place your order quickly and smoothly.
-https://wa.me/2348061511729?text=Hello+I+would+like+to+make+an+enquiry.
+✅ Send a picture or screenshot and we'll help you place your order.
 
-📌 Note: Braiders, wholesalers, and distributors are advised to order via WhatsApp to enjoy discounted prices.
-
-3️⃣ Walk into our shop to place your order
-📍 124 Okigwe Road, Opp. Imo Girls Secondary School, Owerri
-🕘 Business Hours: 9:00 AM – 8:00 PM Daily
-
-🚚 DELIVERY POLICY
-
-📍 OWERRI: Free doorstep delivery from 4 pieces and above
-📦 NEARBY STATES (Abia, Anambra, Ebonyi, Enugu, Imo, Rivers, PH): Free pickup center from 4 pieces
-🚛 FAR STATES (Lagos, Abuja, Jos, Kaduna etc): Free pickup center from 12 pieces
+✅ Visit our store:
+124 Okigwe Road, Opposite Imo Girls Secondary School, Owerri, Imo State.
 
 💰 PRICE CATEGORIES
-1️⃣ Regular Buyers: ₦3,750 (1 Tone) | ₦4,000 (2 Tones) | ₦4,250 (3 Tones)
-2️⃣ Braiders: ₦3,500 (1 & 2 Tones) | ₦3,750 (3 Tones)
-3️⃣ Resellers (50+ pcs): ₦3,250 (1 & 2 Tones) | ₦3,500 (3 Tones)
-4️⃣ Wholesalers (200+ pcs): ₦3,000 (1 & 2 Tones) | ₦3,250 (3 Tones)
-5️⃣ Distributors (500+ pcs): ₦2,750 (1 & 2 Tones) | ₦3,000 (3 Tones)
-6️⃣ Pre-Order (500+ pcs): ₦2,600 (1 & 2 Tones) | ₦2,820 (3 Tones)
 
-📢 JOIN OUR COMMUNITY
-Drop shippers, distributors, regular buyers — join us for daily updates:
-📲 Telegram: https://t.me/enogbeautycastle
-📲 WhatsApp Channel: https://whatsapp.com/channel/0029VbCmuhSAYlURfxNoOr22
+🚚 Distributors (500+ packs) – From ₦2,750
+🏪 Wholesalers (200+ packs) – From ₦3,000
+📦 Resellers (50+ packs) – From ₦3,250
+💇 Braiders – From ₦3,500
+🛍️ Regular Buyers (1–50 packs) – From ₦3,750
 
-💬 Instagram & Facebook DM: @enogbeautycastle
-👩‍💼 Management: +2347034562686 (response within 24 hours)
+🚚 DELIVERY AVAILABLE NATIONWIDE & INTERNATIONALLY
 
-✨ Thank you for shopping with Enog Beauty Castle 🛍️`;
+📢 Join Our Channels For Daily Discounts & New Arrivals
+
+Telegram: https://t.me/enogbeautycastle
+WhatsApp Channel: https://whatsapp.com/channel/0029VbCmuhSAYlURfxNoOr22
+
+📞 Customer Care: wa.me/2348061511729
+📞 Bulk Orders & Negotiations: wa.me/2348156394852
+📧 Complaints: Enogbeautycastle@gmail.com
+
+Kindly send a picture of the item you want, your quantity, and delivery location for a quick quote. 😊🛍️`;
 
         await sendWA(welcomeMsg);
         console.log('✅ Welcome message sent to new customer:', customerName);
@@ -1205,7 +1195,7 @@ CONVERSATION: ONGOING — NO greeting. Reply directly to what the customer said.
           reply.toLowerCase().includes('connect you to our manager') ||
           reply.toLowerCase().includes('let me connect you')) {
         try {
-          const managerNumber = 'whatsapp:+2347034562686';
+          const managerNumber = 'whatsapp:+2348156394852';
           const alertMsg = `🔔 MANAGER ALERT!
 Customer: ${customerName}
 Number: ${From}
@@ -1312,7 +1302,7 @@ async function sendFollowUps() {
       if (conv.status === 'unpaid' && timeSince > threeHours && followUpCount < 2) {
         msg = followUpCount === 0
           ? "Hi! 😊 Just checking on your order — were you able to make the payment? Let me know if you need the account details again!"
-          : "Hello! Your order is still pending payment. Kindly complete payment so we can process it. Need help? Contact manager: +2347034562686";
+          : "Hello! Your order is still pending payment. Kindly complete payment so we can process it. Need help? Contact manager: +2348156394852";
       } else if (timeSince > oneHour && timeSince < 3 * 60 * 60 * 1000 && followUpCount === 0) {
         // First follow-up after 1 hour
         msg = `Good day ma 😊
@@ -1331,7 +1321,7 @@ While distributors, wholesalers and marketers can order here on WhatsApp to get 
 
 Our extensions are the best quality in the market with 100% refund guarantee if it doesn't match what we described.
 
-Feel free to speak with our manager directly: +2347034562686 😊
+Feel free to speak with our manager directly: +2348156394852 😊
 
 Or visit: https://enogbeautycastle.bumpa.shop/`;
       } else if (timeSince > 20 * 60 * 60 * 1000 && timeSince < 22 * 60 * 60 * 1000 && followUpCount < 3) {
@@ -1353,7 +1343,7 @@ Remember to join our WhatsApp Channel and Telegram for daily updates on discount
 For fast response, chat us on Instagram and Facebook DM: @enogbeautycastle
 Work hours: 9am–8pm daily
 
-For deeper enquiries, write our MD on WhatsApp: wa.me/2347034562686
+For deeper enquiries, write our MD on WhatsApp: wa.me/2348156394852
 This will be responded to within 24 hours 📌
 
 We will meet again when you are ready to order again ma🥰🥰
