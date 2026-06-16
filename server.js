@@ -1009,45 +1009,63 @@ app.post('/webhook', async (req, res) => {
           await sendWA("Thank you for the picture 😊 It has been received and will be reviewed by our team.");
           return;
         }
-        // Use Claude to read/analyze the image
-        try {
-          const imgRes = await fetch(MediaUrl0, {
-            headers: { Authorization: 'Basic ' + Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64') }
-          });
-          const imgBuffer = await imgRes.arrayBuffer();
-          const base64Img = Buffer.from(imgBuffer).toString('base64');
-          const contentType = MediaContentType0 || 'image/jpeg';
+        // Keep image as image — do NOT convert to text
+        // Just tell Chioma an image was received so she can respond appropriately
+        const isReceipt = Body && (Body.toLowerCase().includes('receipt') || Body.toLowerCase().includes('payment') || Body.toLowerCase().includes('transfer') || Body.toLowerCase().includes('paid'));
+        
+        if (isReceipt || !Body) {
+          // Try to detect if it's a payment receipt using Claude vision
+          try {
+            const imgRes = await fetch(MediaUrl0, {
+              headers: { Authorization: 'Basic ' + Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64') }
+            });
+            const imgBuffer = await imgRes.arrayBuffer();
+            const base64Img = Buffer.from(imgBuffer).toString('base64');
+            const contentType = MediaContentType0 || 'image/jpeg';
 
-          // Ask Claude what's in the image
-          const visionRes = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-            body: JSON.stringify({
-              model: 'claude-sonnet-4-5',
-              max_tokens: 200,
-              messages: [{
-                role: 'user',
-                content: [
-                  { type: 'image', source: { type: 'base64', media_type: contentType, data: base64Img } },
-                  { type: 'text', text: 'This image was sent by a customer to a hair extensions shop called Enog Beauty Castle. Describe what you see in 1-2 sentences. Is it a hairstyle they want? A payment receipt? A product they are asking about? A complaint? Be brief and specific.' }
-                ]
-              }]
-            })
-          });
-          const visionData = await visionRes.json();
-          const imgDescription = visionData.content?.[0]?.text || 'an image';
-          messageContent = Body 
-            ? `[Customer sent an image with caption: "${Body}". Image shows: ${imgDescription}]`
-            : `[Customer sent an image. Image shows: ${imgDescription}]`;
-          console.log('Image analyzed:', imgDescription);
-        } catch (imgErr) {
-          console.error('Image analysis error:', imgErr.message);
-          messageContent = Body ? `[Customer sent image with caption: "${Body}"]` : "[Customer sent an image]";
+            const visionRes = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+              body: JSON.stringify({
+                model: 'claude-sonnet-4-5',
+                max_tokens: 50,
+                messages: [{
+                  role: 'user',
+                  content: [
+                    { type: 'image', source: { type: 'base64', media_type: contentType, data: base64Img } },
+                    { type: 'text', text: 'Is this a payment receipt or bank transfer screenshot? Answer only YES or NO.' }
+                  ]
+                }]
+              })
+            });
+            const visionData = await visionRes.json();
+            const isPaymentReceipt = visionData.content?.[0]?.text?.toUpperCase().includes('YES');
+            
+            if (isPaymentReceipt) {
+              messageContent = '[Customer sent a PAYMENT RECEIPT image]';
+              console.log('💰 PAYMENT RECEIPT DETECTED from', customerName);
+              // Alert manager immediately!
+              try {
+                const alertMsg = `💰 PAYMENT RECEIVED!
+Customer: ${customerName}
+Number: ${From}
+They have sent a payment receipt. Please verify and process their order immediately!`;
+                await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + Buffer.from(`${sid}:${authToken}`).toString('base64') },
+                  body: new URLSearchParams({ From: To, To: 'whatsapp:+2347034562686', Body: alertMsg }).toString(),
+                });
+                console.log('Manager alerted of payment receipt!');
+              } catch(e) { console.error('Manager alert error:', e.message); }
+            } else {
+              messageContent = Body ? `[Customer sent an image: "${Body}"]` : '[Customer sent an image]';
+            }
+          } catch(e) {
+            messageContent = Body ? `[Customer sent an image: "${Body}"]` : '[Customer sent an image]';
+          }
+        } else {
+          messageContent = `[Customer sent an image with caption: "${Body}"]`;
         }
-        // Save image URL so dashboard can display it
-        if (!conversations[From]) conversations[From] = [];
-        conversations[From]._lastImageUrl = MediaUrl0;
-        conversations[From]._lastImageType = MediaContentType0;
       }
 
       if (!messageContent) return;
@@ -1207,19 +1225,31 @@ Please follow up with this customer urgently! 🙏`;
       const convData = existingConv || { id: redisKey, from: From, name: customerName, messages: [], status: 'needs_reply', lastActive: Date.now(), unread: 0 };
       const isImageMsg = NumMedia > 0 && MediaContentType0 && MediaContentType0.startsWith('image');
       
-      // For images, use our proxy endpoint so dashboard can display them
+      // For images, use our proxy endpoint so dashboard shows ACTUAL image
       let imageUrl = null;
       if (isImageMsg && MediaUrl0) {
         imageUrl = `https://enog-server-production.up.railway.app/api/image-proxy?url=${encodeURIComponent(MediaUrl0)}`;
+        console.log('📷 Image received from', customerName, '— saved for dashboard display');
       }
+      
+      // Detect payment receipts for status
+      const isPaymentMsg = messageContent.includes('PAYMENT RECEIPT');
       
       convData.messages.push({ 
         from: 'customer', 
-        text: messageContent === Body ? messageContent : '📷 Image',
+        text: isImageMsg ? (Body || '📷 Image') : messageContent,
         time: new Date().toISOString(),
         imageUrl: imageUrl,
-        imageType: isImageMsg ? MediaContentType0 : null
+        imageType: isImageMsg ? MediaContentType0 : null,
+        isReceipt: isPaymentMsg
       });
+      
+      // If payment receipt — mark as unpaid->paid and flag for Enog
+      if (isPaymentMsg) {
+        convData.status = 'unpaid';
+        convData.hasPaymentReceipt = true;
+        console.log('💰 Payment receipt flagged in conversation for', customerName);
+      }
       convData.messages.push({ from: 'business', text: reply, time: new Date().toISOString() });
       convData.lastActive = Date.now();
       convData.name = customerName;
