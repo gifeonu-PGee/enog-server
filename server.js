@@ -1085,9 +1085,75 @@ app.post('/webhook', async (req, res) => {
       conversations[From].push({ role: 'user', content: messageContent });
       if (conversations[From].length > 20) conversations[From] = conversations[From].slice(-20);
 
-      const systemPrompt = `${BUSINESS_PROMPT}
+      // NEW CUSTOMER — bypass AI, send welcome directly
+      if (isFirst) {
+        const hour = new Date().getHours();
+        const greeting = hour < 12 ? 'Good morning my lover 🥰' : hour < 17 ? 'Good afternoon my lover 🥰' : 'Good evening my lover 🥰';
 
-CONVERSATION: ${isFirst ? 'NEW — use the welcome message above then ask how you can help.' : 'ONGOING — NO greeting at all. Reply directly to what they said.'}`;
+        const welcomeMsg = `${greeting}
+
+🥰 Welcome My Lover!
+
+Thank you for choosing Enog Beauty Castle 🛍️
+
+🛍️ HOW TO ORDER
+
+1️⃣ Order from our website:
+https://enogbeautycastle.bumpa.shop/
+
+2️⃣ Send a picture/screenshot of the product
+We will help you place your order quickly and smoothly.
+https://wa.me/2348061511729?text=Hello+I+would+like+to+make+an+enquiry.
+
+📌 Note: Braiders, wholesalers, and distributors are advised to order via WhatsApp to enjoy discounted prices.
+
+3️⃣ Walk into our shop to place your order
+📍 124 Okigwe Road, Opp. Imo Girls Secondary School, Owerri
+🕘 Business Hours: 9:00 AM – 8:00 PM Daily
+
+🚚 DELIVERY POLICY
+
+📍 OWERRI: Free doorstep delivery from 4 pieces and above
+📦 NEARBY STATES (Abia, Anambra, Ebonyi, Enugu, Imo, Rivers, PH): Free pickup center from 4 pieces
+🚛 FAR STATES (Lagos, Abuja, Jos, Kaduna etc): Free pickup center from 12 pieces
+
+💰 PRICE CATEGORIES
+1️⃣ Regular Buyers: ₦3,750 (1 Tone) | ₦4,000 (2 Tones) | ₦4,250 (3 Tones)
+2️⃣ Braiders: ₦3,500 (1 & 2 Tones) | ₦3,750 (3 Tones)
+3️⃣ Resellers (50+ pcs): ₦3,250 (1 & 2 Tones) | ₦3,500 (3 Tones)
+4️⃣ Wholesalers (200+ pcs): ₦3,000 (1 & 2 Tones) | ₦3,250 (3 Tones)
+5️⃣ Distributors (500+ pcs): ₦2,750 (1 & 2 Tones) | ₦3,000 (3 Tones)
+6️⃣ Pre-Order (500+ pcs): ₦2,600 (1 & 2 Tones) | ₦2,820 (3 Tones)
+
+📢 JOIN OUR COMMUNITY
+Drop shippers, distributors, regular buyers — join us for daily updates:
+📲 Telegram: https://t.me/enogbeautycastle
+📲 WhatsApp Channel: https://whatsapp.com/channel/0029VbCmuhSAYlURfxNoOr22
+
+💬 Instagram & Facebook DM: @enogbeautycastle
+👩‍💼 Management: +2347034562686 (response within 24 hours)
+
+✨ Thank you for shopping with Enog Beauty Castle 🛍️`;
+
+        await sendWA(welcomeMsg);
+        console.log('✅ Welcome message sent to new customer:', customerName);
+        conversations[From].push({ role: 'assistant', content: welcomeMsg });
+        await saveContact(From, customerName);
+
+        const newConvData = {
+          id: redisKey, from: From, name: customerName,
+          messages: [
+            { from: 'customer', text: messageContent, time: new Date().toISOString() },
+            { from: 'business', text: welcomeMsg, time: new Date().toISOString() }
+          ],
+          status: 'needs_reply', lastActive: Date.now(), unread: 1, followUpCount: 0
+        };
+        await redisSave(redisKey, newConvData);
+        return;
+      }
+
+      const systemPrompt = `${BUSINESS_PROMPT}
+CONVERSATION: ONGOING — NO greeting. Reply directly to what the customer said.`;
 
       const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
