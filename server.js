@@ -2,6 +2,93 @@ const express = require('express');
 const app = express();
 const crypto = require('crypto');
 
+// Google Sheets Integration
+
+// ── Google Sheets Integration ────────────────────────────────────────────────
+const SHEET_ID = '1OqZueMSaJjuRaJ7ERSyC71KhbOS5vwBLlcnzQAxzXfU';
+const GOOGLE_CLIENT_EMAIL = 'enog-contacts@enog-contacts.iam.gserviceaccount.com';
+const GOOGLE_PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDESk+GsTckHftL\nsvW6Mv0lJpHzOjnpTHCiRBaSlEgheBvUl5gTTgpI69jgdCRSoOl4so+K8zyVzesX\n5iEt2IKDE1+BTMgSBtJt7Q/eXyanKR2tlt5acYo5HVCUUaif5+PCVP9qmeoJ+6kE\nMqyrtGObMk4UMyDsayNTf6ArXxAjtsvLn28lqX85bzA4qJKB16EeGVgcSO/l+XO8\nnoV1Cpc1aTHZZMwJvS3IvqyJ1KbweuvwwmB/E93ITCuE5xTBAhSz6LK6asfP6ZV0\nMD8mQuWijyniThFqOBcUIqdzOlWb81VDrhXoShf8L4bQtuqKM5jdiyk8tp3rGz1W\n8/AOtn2TAgMBAAECggEAJBaJcnkIa0J73hoD5XzUX80sjixJU2QzXRHpmH9cl5Ku\ngzJvyjTR3UBHOlUADJT6967UhzZbECuwqk8sEHK65ABe0bXdHrtUWtN31GloANml\nVDHlpXk0cXW7R9mPh/6pOCRKZT3w8m7rTxNF/beHjJP+GOahifXUo9hWCUNMA1SY\nKLEnXuz0H68EdiVcqXIeVhgANOhBaK3EsNbITOvEu1on2P/Vv+dL/0QNPRfgWKus\n+CtK+6ZMmmZazw4YdOSxrSZHZ8wAxjsanNtPJHqq2P1648FJkpzinh95kdVW1y1F\nzDI8MIBe3ZO2qCoiv/Y89e1wbhzayc8Rfq4aVZcqEQKBgQD91xTxLAAIGIxvrai+\nBpzeYi/Zg+sgIgCaMeP1TKmVLuGXCLMcHQQuO8BaPxKZCwO7MLfa3+o+B2PCvZr8\nY/0v3bUPTtefNaijhqzjGpnGYkIWTNzkXKPzXVJSRzVDu4dp9IYxN9ps8ZfYtEL0\nSuwp79fLJywC/sZ5maIYHX/5qQKBgQDF9d90sFVJDWZOzntyWPamFtGrtCA7dz81\n6LwcdIZzpk5tC/qRe+GPYMytwWV+rsw0pD64uJFH3OP23e1INfxnhxoGQfciAtpp\nkW6fdyausa/lmeZtyyGCY4EGmHbaKDuKkEahANJEBJFCOT8aLE5cgRRkncon4U6j\nnruxk9La2wKBgGYNTpIXSnv2wp8zhh+/sNmHSA1/B8yHXw6e+DLqe1NK4c9C5B9t\nWvzrcM3XhbaZwwpC7+fDFf2SIv1sFR9bY7MWw3BAFlgfzojP4Dn9u80SO9eTV0tI\nI3H4FtyVXEi64BotALZQ6jPafV3WOwTUClZh4rP+L6eUnl7M8WoYkhbhAoGAUEc6\nXCbaHyro71J66086jvY4Bwqf+52LK8B68Issrx+lNEGkVnVHbo6R0nDYSPx34W0t\n5lkqyVrBs64h+KOz/QPjwN/laYyAqEkK9G4saLG0JEc6FBJJP4g8ncEcibHBG5sQ\nmWAs5Np5UcLHXUTUbl0GORtoDK4o5t+LPCM3YfsCgYAIsPsDFULtbN5jmJZ6eQZz\nKqX9k23VMbbzrc4IkRo333w/Jy6YK5lLTqfRN4AaztR9mgV4o0O8lsPii4c4iGoK\nYzmXuSQ6QVIxUNU2OSofz5W3LjG8WqCvoT3vdDbFha8XQaCf+BFPjQTgQPL98dve\nNo2Wva06jQrGqvb4PjiThA==\n-----END PRIVATE KEY-----\n';
+
+async function getGoogleToken() {
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+    const payload = Buffer.from(JSON.stringify({
+      iss: GOOGLE_CLIENT_EMAIL,
+      scope: 'https://www.googleapis.com/auth/spreadsheets',
+      aud: 'https://oauth2.googleapis.com/token',
+      exp: now + 3600, iat: now
+    })).toString('base64url');
+    const signingInput = `${header}.${payload}`;
+    const sign = crypto.createSign('RSA-SHA256');
+    sign.update(signingInput);
+    const signature = sign.sign(GOOGLE_PRIVATE_KEY, 'base64url');
+    const jwt = `${signingInput}.${signature}`;
+    const tr = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion: jwt })
+    });
+    const td = await tr.json();
+    if (!td.access_token) console.error('Google token failed:', JSON.stringify(td));
+    return td.access_token || null;
+  } catch(e) { console.error('Google token error:', e.message); return null; }
+}
+
+async function saveToGoogleSheet(phone, name) {
+  try {
+    const token = await getGoogleToken();
+    if (!token) { console.error('No Google token — skipping sheet save'); return; }
+    const checkRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:A`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const checkData = await checkRes.json();
+    const existing = (checkData.values || []).flat();
+    if (existing.includes(phone)) { console.log(`Already in sheet: ${name}`); return; }
+    const now = new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
+    const appendRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [[phone, name || phone, now]] })
+      }
+    );
+    const appendData = await appendRes.json();
+    if (appendData.error) {
+      console.error('Sheet append error:', JSON.stringify(appendData.error));
+    } else {
+      console.log(`✅ Google Sheet: ${name} (${phone}) saved`);
+    }
+  } catch(e) { console.error('Sheet save error:', e.message); }
+}
+
+async function initGoogleSheet() {
+  try {
+    const token = await getGoogleToken();
+    if (!token) { console.error('Cannot init sheet — no token'); return; }
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await res.json();
+    if (!data.values) {
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1:append?valueInputOption=RAW`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ values: [['Phone Number', 'Customer Name', 'Date Added']] })
+        }
+      );
+      console.log('✅ Google Sheet headers created');
+    } else {
+      console.log('✅ Google Sheet connected and ready');
+    }
+  } catch(e) { console.error('Sheet init error:', e.message); }
+}
+
 // Cloudinary credentials
 const CLOUDINARY_CLOUD = 'dtxhvyyzw';
 const CLOUDINARY_KEY = '244212828577965';
@@ -127,13 +214,38 @@ async function saveContact(phone, name) {
     const token = process.env.KV_REST_API_TOKEN;
     if (!url || !token) return;
     const contactKey = `enog_contact_${phone.replace(/[^a-zA-Z0-9]/g, '_')}`;
-    const contactData = JSON.stringify({ phone, name, firstSeen: new Date().toISOString() });
-    // No EX = never expires
+    
+    // Check if contact already exists to preserve firstSeen date
+    let firstSeen = new Date().toISOString();
+    try {
+      const existing = await fetch(`${url}/get/${contactKey}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const existingData = await existing.json();
+      if (existingData.result) {
+        const parsed = JSON.parse(existingData.result);
+        if (parsed.firstSeen) firstSeen = parsed.firstSeen;
+      }
+    } catch(e) {}
+    
+    const contactData = JSON.stringify({ 
+      phone, 
+      name: name || phone, 
+      firstSeen,
+      lastSeen: new Date().toISOString()
+    });
+    
+    // Save permanently — NO expiry (no EX parameter)
     await fetch(`${url}/pipeline`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify([["SET", contactKey, contactData]])
     });
+    console.log(`Contact saved to Redis: ${name} (${phone})`);
+    // Also save to Google Sheet as permanent backup
+    saveToGoogleSheet(phone, name || phone).catch(e => 
+      console.error('Google Sheet backup error:', e.message)
+    );
   } catch (e) { console.error('Save contact error:', e.message); }
 }
 
@@ -683,38 +795,100 @@ app.post('/api/mark-order-notified', async (req, res) => {
 });
 app.get('/api/contacts', async (req, res) => {
   try {
-    const keys = await redisListKeys('enog_contact_*');
-    if (!keys.length) return res.json([]);
-    const contacts = await Promise.all(keys.map(async k => {
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    
+    // Get contacts from permanent contact store
+    const contactKeys = await redisListKeys('enog_contact_*');
+    const contactsFromStore = await Promise.all(contactKeys.map(async k => {
       try {
-        const url = process.env.KV_REST_API_URL;
-        const token = process.env.KV_REST_API_TOKEN;
         const r = await fetch(`${url}/get/${k}`, { headers: { Authorization: `Bearer ${token}` } });
         const d = await r.json();
         return d.result ? JSON.parse(d.result) : null;
       } catch { return null; }
     }));
-    const valid = contacts.filter(Boolean).sort((a,b) => new Date(b.firstSeen) - new Date(a.firstSeen));
-    res.json(valid);
-  } catch (e) { res.json([]); }
+    
+    // ALSO get contacts from active conversations (backup)
+    const convKeys = await redisListKeys('enog_conv_*');
+    const convContacts = await Promise.all(convKeys.map(async k => {
+      try {
+        const conv = await redisLoad(k);
+        if (!conv || !conv.from) return null;
+        return {
+          phone: conv.from,
+          name: conv.name || conv.from,
+          firstSeen: conv.messages?.[0]?.time || new Date().toISOString(),
+          lastSeen: new Date(conv.lastActive || Date.now()).toISOString()
+        };
+      } catch { return null; }
+    }));
+    
+    // Merge both lists — contacts store takes priority, fill in from convs
+    const allContacts = [...contactsFromStore, ...convContacts].filter(Boolean);
+    const seen = new Set();
+    const unique = allContacts.filter(c => {
+      const key = c.phone;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    
+    unique.sort((a,b) => new Date(b.lastSeen || b.firstSeen) - new Date(a.lastSeen || a.firstSeen));
+    console.log(`Contacts API returning ${unique.length} contacts`);
+    res.json(unique);
+  } catch (e) { 
+    console.error('Contacts error:', e.message);
+    res.json([]); 
+  }
 });
 
 app.get('/api/contacts', async (req, res) => {
   try {
-    const keys = await redisListKeys('enog_contact_*');
-    if (!keys.length) return res.json([]);
-    const contacts = await Promise.all(keys.map(async k => {
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    
+    // Get contacts from permanent contact store
+    const contactKeys = await redisListKeys('enog_contact_*');
+    const contactsFromStore = await Promise.all(contactKeys.map(async k => {
       try {
-        const url = process.env.KV_REST_API_URL;
-        const token = process.env.KV_REST_API_TOKEN;
         const r = await fetch(`${url}/get/${k}`, { headers: { Authorization: `Bearer ${token}` } });
         const d = await r.json();
         return d.result ? JSON.parse(d.result) : null;
       } catch { return null; }
     }));
-    const valid = contacts.filter(Boolean).sort((a,b) => new Date(b.firstSeen) - new Date(a.firstSeen));
-    res.json(valid);
-  } catch (e) { res.json([]); }
+    
+    // ALSO get contacts from active conversations (backup)
+    const convKeys = await redisListKeys('enog_conv_*');
+    const convContacts = await Promise.all(convKeys.map(async k => {
+      try {
+        const conv = await redisLoad(k);
+        if (!conv || !conv.from) return null;
+        return {
+          phone: conv.from,
+          name: conv.name || conv.from,
+          firstSeen: conv.messages?.[0]?.time || new Date().toISOString(),
+          lastSeen: new Date(conv.lastActive || Date.now()).toISOString()
+        };
+      } catch { return null; }
+    }));
+    
+    // Merge both lists — contacts store takes priority, fill in from convs
+    const allContacts = [...contactsFromStore, ...convContacts].filter(Boolean);
+    const seen = new Set();
+    const unique = allContacts.filter(c => {
+      const key = c.phone;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    
+    unique.sort((a,b) => new Date(b.lastSeen || b.firstSeen) - new Date(a.lastSeen || a.firstSeen));
+    console.log(`Contacts API returning ${unique.length} contacts`);
+    res.json(unique);
+  } catch (e) { 
+    console.error('Contacts error:', e.message);
+    res.json([]); 
+  }
 });
 
 app.get('/api/conversations', async (req, res) => {
@@ -1274,6 +1448,8 @@ app.listen(PORT, '0.0.0.0', () => {
   scheduleWeeklyReport();
   setInterval(sendFollowUps, 15 * 60 * 1000); // Check every 15 minutes
   console.log('Follow-up scheduler started — checking every 15 minutes');
+  initGoogleSheet().catch(e => console.error('Sheet init error:', e.message));
+  // Initialize Google Sheet
   // Run immediately on startup to catch any missed follow-ups
   setTimeout(sendFollowUps, 5000);
 });
