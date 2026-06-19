@@ -670,6 +670,150 @@ app.get('/send-report', async (req, res) => {
 });
 
 
+// ── Template Broadcast (sends to ALL contacts via approved WhatsApp template) ──
+app.post('/api/template-broadcast', async (req, res) => {
+  try {
+    const { promoMessage, greeting } = req.body;
+    if (!promoMessage) return res.json({ success: false, error: 'No message provided' });
+
+    const sid = process.env.TWILIO_ACCOUNT_SID;
+    const token = process.env.TWILIO_AUTH_TOKEN;
+    const from = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+2348061511729';
+    const TEMPLATE_SID = 'HX08d3732bd33addd96f0c7257c8fbd0c3';
+
+    // Get ALL contacts from Google Sheet
+    const sheetToken = await getGoogleToken();
+    let contacts = [];
+    if (sheetToken) {
+      const sheetRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:B`,
+        { headers: { Authorization: `Bearer ${sheetToken}` } }
+      );
+      const sheetData = await sheetRes.json();
+      const rows = sheetData.values || [];
+      // Skip header row
+      contacts = rows.slice(1).filter(r => r[0] && r[0].startsWith('whatsapp:')).map(r => ({
+        phone: r[0],
+        name: r[1] || 'My Lover'
+      }));
+      // Also include contacts without whatsapp: prefix
+      const rawContacts = rows.slice(1).filter(r => r[0] && !r[0].startsWith('whatsapp:')).map(r => ({
+        phone: `whatsapp:${r[0]}`,
+        name: r[1] || 'My Lover'
+      }));
+      contacts = [...contacts, ...rawContacts];
+    }
+
+    if (!contacts.length) {
+      return res.json({ success: false, error: 'No contacts found in Google Sheet' });
+    }
+
+    console.log(`Template broadcast to ${contacts.length} contacts`);
+
+    let sent = 0, failed = 0;
+    for (const contact of contacts) {
+      try {
+        const body = new URLSearchParams({
+          From: `whatsapp:${from.replace('whatsapp:', '')}`,
+          To: contact.phone,
+          ContentSid: TEMPLATE_SID,
+          ContentVariables: JSON.stringify({
+            "1": greeting || 'My Lover',
+            "2": promoMessage
+          })
+        });
+
+        const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64')
+          },
+          body: body.toString()
+        });
+        const d = await r.json();
+        if (d.error_code) {
+          failed++;
+          console.error(`Failed to ${contact.phone}:`, d.message);
+        } else {
+          sent++;
+          console.log(`Sent to ${contact.name} (${contact.phone})`);
+        }
+        // Small delay to avoid rate limits
+        await new Promise(r => setTimeout(r, 300));
+      } catch(e) {
+        failed++;
+        console.error(`Error sending to ${contact.phone}:`, e.message);
+      }
+    }
+
+    res.json({ success: true, sent, failed, total: contacts.length });
+  } catch(e) {
+    console.error('Template broadcast error:', e.message);
+    res.json({ success: false, error: e.message });
+  }
+});
+
+// ── Template Broadcast (sends to ALL contacts via approved WhatsApp template) ──
+app.post('/api/template-broadcast', async (req, res) => {
+  try {
+    const { promoMessage, greeting } = req.body;
+    if (!promoMessage) return res.json({ success: false, error: 'No message provided' });
+
+    const sid = process.env.TWILIO_ACCOUNT_SID;
+    const token = process.env.TWILIO_AUTH_TOKEN;
+    const from = (process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+2348061511729').replace('whatsapp:', '');
+    const TEMPLATE_SID = 'HX08d3732bd33addd96f0c7257c8fbd0c3';
+
+    // Get ALL contacts from Google Sheet
+    const sheetToken = await getGoogleToken();
+    let contacts = [];
+    if (sheetToken) {
+      const sheetRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:B`,
+        { headers: { Authorization: `Bearer ${sheetToken}` } }
+      );
+      const sheetData = await sheetRes.json();
+      const rows = (sheetData.values || []).slice(1); // skip header
+      contacts = rows.filter(r => r[0]).map(r => ({
+        phone: r[0].startsWith('whatsapp:') ? r[0] : `whatsapp:${r[0]}`,
+        name: r[1] || 'My Lover'
+      }));
+    }
+
+    if (!contacts.length) return res.json({ success: false, error: 'No contacts found in Google Sheet' });
+    console.log(`Template broadcast to ${contacts.length} contacts`);
+
+    let sent = 0, failed = 0;
+    for (const contact of contacts) {
+      try {
+        const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64')
+          },
+          body: new URLSearchParams({
+            From: `whatsapp:${from}`,
+            To: contact.phone,
+            ContentSid: TEMPLATE_SID,
+            ContentVariables: JSON.stringify({ "1": greeting || 'My Lover', "2": promoMessage })
+          }).toString()
+        });
+        const d = await r.json();
+        if (d.error_code) { failed++; console.error(`Failed ${contact.phone}: ${d.message}`); }
+        else { sent++; console.log(`✅ Sent to ${contact.name}`); }
+        await new Promise(r => setTimeout(r, 300));
+      } catch(e) { failed++; }
+    }
+
+    res.json({ success: true, sent, failed, total: contacts.length });
+  } catch(e) {
+    console.error('Template broadcast error:', e.message);
+    res.json({ success: false, error: e.message });
+  }
+});
+
 // ── Broadcast Messages ────────────────────────────────────────────────────────
 app.post('/api/broadcast', async (req, res) => {
   try {
