@@ -190,6 +190,12 @@ function getBusiestHour(h) {
   return `${hour % 12 || 12}:00 ${hour >= 12 ? 'PM' : 'AM'}`;
 }
 
+// Invalidate conversations cache when data changes
+function invalidateCache() { convsCache = { data: [], time: 0 }; }
+
+// Invalidate conversations cache when data changes
+function invalidateCache() { convsCache = { data: [], time: 0 }; }
+
 async function redisSave(key, value) {
   try {
     const url = process.env.KV_REST_API_URL;
@@ -204,6 +210,8 @@ async function redisSave(key, value) {
     });
     const d = await r.json();
     console.log(`Redis save [${key}]: ${JSON.stringify(d)}`);
+    invalidateCache();
+    invalidateCache();
   } catch (e) { console.error('Redis save error:', e.message); }
 }
 
@@ -968,8 +976,17 @@ app.get('/api/contacts', async (req, res) => {
   }
 });
 
+// Cache conversations to reduce Redis commands
+let convsCache = { data: [], time: 0 };
+const CACHE_TTL = 15000; // 15 seconds cache
+
 app.get('/api/conversations', async (req, res) => {
   try {
+    // Return cached data if fresh
+    if (Date.now() - convsCache.time < CACHE_TTL && convsCache.data.length > 0) {
+      return res.json(convsCache.data);
+    }
+
     const keys = await redisListKeys('enog_conv_*');
     if (!keys.length) return res.json([]);
     
@@ -1002,6 +1019,8 @@ app.get('/api/conversations', async (req, res) => {
     
     const valid = convs.filter(Boolean).sort((a, b) => (b.lastActive || 0) - (a.lastActive || 0));
     console.log(`Returning ${valid.length} conversations`);
+    // Update cache
+    convsCache = { data: valid, time: Date.now() };
     res.json(valid);
   } catch (e) {
     console.error('Get convs error:', e.message);
@@ -1523,7 +1542,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Enog Braid Extensions Agent running on port ${PORT}`);
   scheduleWeeklyReport();
-  setInterval(sendFollowUps, 15 * 60 * 1000); // Check every 15 minutes
+  setInterval(sendFollowUps, 30 * 60 * 1000); // Check every 30 minutes
   console.log('Follow-up scheduler started — checking every 15 minutes');
   initGoogleSheet().catch(e => console.error('Sheet init error:', e.message));
   // Initialize Google Sheet
