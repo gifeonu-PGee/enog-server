@@ -678,7 +678,7 @@ app.post('/api/template-broadcast', async (req, res) => {
 
     const sid = process.env.TWILIO_ACCOUNT_SID;
     const token = process.env.TWILIO_AUTH_TOKEN;
-    const from = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+2348061511729';
+    const fromNumber = '+2348061511729';
     const TEMPLATE_SID = 'HX08d3732bd33addd96f0c7257c8fbd0c3';
 
     // Get ALL contacts from Google Sheet
@@ -690,37 +690,28 @@ app.post('/api/template-broadcast', async (req, res) => {
         { headers: { Authorization: `Bearer ${sheetToken}` } }
       );
       const sheetData = await sheetRes.json();
-      const rows = sheetData.values || [];
-      // Skip header row
-      contacts = rows.slice(1).filter(r => r[0] && r[0].startsWith('whatsapp:')).map(r => ({
-        phone: r[0],
-        name: r[1] || 'My Lover'
-      }));
-      // Also include contacts without whatsapp: prefix
-      const rawContacts = rows.slice(1).filter(r => r[0] && !r[0].startsWith('whatsapp:')).map(r => ({
-        phone: `whatsapp:${r[0]}`,
-        name: r[1] || 'My Lover'
-      }));
-      contacts = [...contacts, ...rawContacts];
+      const rows = (sheetData.values || []).slice(1); // skip header row
+      
+      contacts = rows.filter(r => r[0] && r[0] !== 'Phone Number').map(r => {
+        let phone = r[0].trim();
+        // Normalize phone number format
+        if (!phone.startsWith('whatsapp:')) phone = `whatsapp:${phone}`;
+        if (!phone.includes('+')) phone = phone.replace('whatsapp:', 'whatsapp:+');
+        return { phone, name: r[1] || 'My Lover' };
+      });
     }
 
-    if (!contacts.length) {
-      return res.json({ success: false, error: 'No contacts found in Google Sheet' });
-    }
+    if (!contacts.length) return res.json({ success: false, error: 'No contacts found in Google Sheet' });
+    console.log(`Template broadcast starting — ${contacts.length} contacts`);
 
-    console.log(`Template broadcast to ${contacts.length} contacts`);
-
-    let sent = 0, failed = 0;
+    let sent = 0, failed = 0, errors = [];
     for (const contact of contacts) {
       try {
-        const body = new URLSearchParams({
-          From: `whatsapp:${from.replace('whatsapp:', '')}`,
+        const params = new URLSearchParams({
+          From: `whatsapp:${fromNumber}`,
           To: contact.phone,
           ContentSid: TEMPLATE_SID,
-          ContentVariables: JSON.stringify({
-            "1": greeting || 'My Lover',
-            "2": promoMessage
-          })
+          ContentVariables: JSON.stringify({ "1": greeting || 'My Lover', "2": promoMessage })
         });
 
         const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
@@ -729,85 +720,27 @@ app.post('/api/template-broadcast', async (req, res) => {
             'Content-Type': 'application/x-www-form-urlencoded',
             Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64')
           },
-          body: body.toString()
+          body: params.toString()
         });
         const d = await r.json();
         if (d.error_code) {
           failed++;
-          console.error(`Failed to ${contact.phone}:`, d.message);
+          errors.push(`${contact.phone}: ${d.message}`);
+          console.error(`❌ Failed ${contact.phone}: ${d.message} (code: ${d.error_code})`);
         } else {
           sent++;
-          console.log(`Sent to ${contact.name} (${contact.phone})`);
+          console.log(`✅ Sent to ${contact.name} (${contact.phone})`);
         }
-        // Small delay to avoid rate limits
+        // 300ms delay to avoid Twilio rate limits
         await new Promise(r => setTimeout(r, 300));
       } catch(e) {
         failed++;
-        console.error(`Error sending to ${contact.phone}:`, e.message);
+        console.error(`❌ Error sending to ${contact.phone}:`, e.message);
       }
     }
 
-    res.json({ success: true, sent, failed, total: contacts.length });
-  } catch(e) {
-    console.error('Template broadcast error:', e.message);
-    res.json({ success: false, error: e.message });
-  }
-});
-
-// ── Template Broadcast (sends to ALL contacts via approved WhatsApp template) ──
-app.post('/api/template-broadcast', async (req, res) => {
-  try {
-    const { promoMessage, greeting } = req.body;
-    if (!promoMessage) return res.json({ success: false, error: 'No message provided' });
-
-    const sid = process.env.TWILIO_ACCOUNT_SID;
-    const token = process.env.TWILIO_AUTH_TOKEN;
-    const from = (process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+2348061511729').replace('whatsapp:', '');
-    const TEMPLATE_SID = 'HX08d3732bd33addd96f0c7257c8fbd0c3';
-
-    // Get ALL contacts from Google Sheet
-    const sheetToken = await getGoogleToken();
-    let contacts = [];
-    if (sheetToken) {
-      const sheetRes = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:B`,
-        { headers: { Authorization: `Bearer ${sheetToken}` } }
-      );
-      const sheetData = await sheetRes.json();
-      const rows = (sheetData.values || []).slice(1); // skip header
-      contacts = rows.filter(r => r[0]).map(r => ({
-        phone: r[0].startsWith('whatsapp:') ? r[0] : `whatsapp:${r[0]}`,
-        name: r[1] || 'My Lover'
-      }));
-    }
-
-    if (!contacts.length) return res.json({ success: false, error: 'No contacts found in Google Sheet' });
-    console.log(`Template broadcast to ${contacts.length} contacts`);
-
-    let sent = 0, failed = 0;
-    for (const contact of contacts) {
-      try {
-        const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            Authorization: 'Basic ' + Buffer.from(`${sid}:${token}`).toString('base64')
-          },
-          body: new URLSearchParams({
-            From: `whatsapp:${from}`,
-            To: contact.phone,
-            ContentSid: TEMPLATE_SID,
-            ContentVariables: JSON.stringify({ "1": greeting || 'My Lover', "2": promoMessage })
-          }).toString()
-        });
-        const d = await r.json();
-        if (d.error_code) { failed++; console.error(`Failed ${contact.phone}: ${d.message}`); }
-        else { sent++; console.log(`✅ Sent to ${contact.name}`); }
-        await new Promise(r => setTimeout(r, 300));
-      } catch(e) { failed++; }
-    }
-
-    res.json({ success: true, sent, failed, total: contacts.length });
+    console.log(`Template broadcast complete: ${sent} sent, ${failed} failed`);
+    res.json({ success: true, sent, failed, total: contacts.length, errors: errors.slice(0, 5) });
   } catch(e) {
     console.error('Template broadcast error:', e.message);
     res.json({ success: false, error: e.message });
