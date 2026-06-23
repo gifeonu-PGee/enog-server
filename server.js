@@ -350,6 +350,30 @@ function scheduleWeeklyReport() {
   setTimeout(() => { sendWeeklyReport(); setInterval(sendWeeklyReport, 7*24*60*60*1000); }, next - new Date());
 }
 
+// Fetch website content for Chioma to learn from
+let websiteKnowledge = '';
+async function learnFromWebsite() {
+  try {
+    const res = await fetch('https://enogbeautycastle.bumpa.shop/', {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    const html = await res.text();
+    // Extract text content from HTML
+    const text = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .substring(0, 3000); // First 3000 chars
+    websiteKnowledge = text;
+    console.log('✅ Website knowledge loaded:', text.length, 'chars');
+  } catch(e) {
+    console.error('Website fetch error:', e.message);
+  }
+}
+
+
 const BUSINESS_PROMPT = `You are Chioma, the WhatsApp sales agent for ENOG BRAID EXTENSIONS — No. 1 Wholesale Supplier of hair extensions in Owerri, Nigeria. Your name is Chioma. When customers ask who they are speaking with, say "This is Chioma from Enog Braid Extensions 😊". Chat like a warm, professional Nigerian hair seller.
 
 RULES:
@@ -546,11 +570,24 @@ Once confirmed, send payment details:
 "✅ Order confirmed! Please make payment to:
 🏦 Moniepoint: 5057191869 — Enog Beauty Castle
 🏦 UBA: 1025287966 — Enog Beauty Castle
-After payment, please send your receipt here to confirm your order. 🙏"
+
+After payment, VERY IMPORTANT:
+📸 Please send your proof of payment/receipt to our manager on WhatsApp: +2347034562686
+This is for quick confirmation and processing of your order. 🙏"
 
 STEP 9 — RECEIPT CONFIRMATION:
-When customer sends receipt/payment proof:
-"Thank you! 🎉 Your payment has been received. Your order is being processed and will be delivered within [timeframe]. We will keep you updated!"
+When customer sends receipt/payment proof here on WhatsApp:
+"Thank you! 🎉 Your payment has been received. Kindly also forward this receipt to our manager on WhatsApp: +2347034562686 for quick confirmation and processing. Your order will be delivered within [timeframe]. We will keep you updated! 😊"
+
+PAYMENT PROOF RULE — VERY IMPORTANT:
+After every order payment, ALWAYS tell customer:
+"Please send your proof of payment to our manager on WhatsApp: +2347034562686 for quick confirmation and processing of your order. 🙏"
+This applies whether customer pays on Moniepoint or UBA.
+
+PAYMENT PROOF RULE — VERY IMPORTANT:
+After every order and payment details are shared, ALWAYS instruct customer:
+"Please send your proof of payment/receipt to our manager on WhatsApp: +2347034562686 for quick confirmation and processing of your order. 🙏"
+Never forget this instruction — it is mandatory after every payment.
 
 DISCOUNT REQUESTS:
 If customer asks for discount → "Kindly speak with our manager directly for special pricing: +2347034562686 😊"
@@ -1546,6 +1583,8 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('Follow-up scheduler started — checking every 15 minutes');
   initGoogleSheet().catch(e => console.error('Sheet init error:', e.message));
   // Initialize Google Sheet
+  learnFromWebsite().catch(e => console.error('Website learn error:', e.message));
+  setInterval(learnFromWebsite, 6 * 60 * 60 * 1000); // Refresh website knowledge every 6 hours
   // Run immediately on startup to catch any missed follow-ups
   setTimeout(sendFollowUps, 5000);
 });
