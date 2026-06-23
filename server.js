@@ -1425,17 +1425,7 @@ They have sent a payment receipt. Please verify and process their order immediat
 
         const welcomeMsg = `${greeting}
 
-Thank you for contacting us. We are your trusted supplier of quality braiding hair, curls, twists, braided wigs, human hair braid extensions, and beauty accessories.
-
-🛍️ HOW TO ORDER
-
-✅ Order from our website:
-https://enogbeautycastle.bumpa.shop/
-
-✅ Send a picture or screenshot and we'll help you place your order.
-
-✅ Visit our store:
-124 Okigwe Road, Opposite Imo Girls Secondary School, Owerri, Imo State.
+I am Chioma and your customer care attendant 🥰
 
 💰 PRICE CATEGORIES
 
@@ -1456,7 +1446,9 @@ WhatsApp Channel: https://whatsapp.com/channel/0029VbCmuhSAYlURfxNoOr22
 📞 Bulk Orders & Negotiations: wa.me/2347034562686
 📧 Complaints: Enogbeautycastle@gmail.com
 
-Kindly send a picture of the item you want, your quantity, and delivery location for a quick quote. 😊🛍️`;
+Kindly send a picture of the item you want to the manager for bulk order and negotiation 🥰
+
+How can I help assist you in navigating the website my lover?? 😊`;
 
         await sendWA(welcomeMsg);
         console.log('✅ Welcome message sent to new customer:', customerName);
