@@ -996,6 +996,89 @@ app.post('/api/mark-order-notified', async (req, res) => {
     res.json({ success: true });
   } catch (e) { res.json({ success: false }); }
 });
+app.post('/api/import-contacts', async (req, res) => {
+  try {
+    const { contacts } = req.body;
+    if (!contacts || !contacts.length) return res.json({ success: false, error: 'No contacts provided' });
+    
+    const token = await getGoogleToken();
+    if (!token) return res.json({ success: false, error: 'Google Sheets not connected' });
+    
+    // Get existing phones to avoid duplicates
+    const checkRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:A`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const checkData = await checkRes.json();
+    const existing = new Set((checkData.values || []).flat());
+    
+    // Filter out duplicates
+    const newContacts = contacts.filter(c => !existing.has(c.phone));
+    
+    if (!newContacts.length) {
+      return res.json({ success: true, saved: 0, message: 'All contacts already exist' });
+    }
+    
+    // Batch save to Google Sheet
+    const now = new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
+    const values = newContacts.map(c => [c.phone, c.name || 'Customer', now]);
+    
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values })
+      }
+    );
+    
+    // Also save to Redis contacts
+    for (const c of newContacts) {
+      await saveContact(c.phone, c.name || 'Customer');
+    }
+    
+    console.log(`✅ Imported ${newContacts.length} contacts`);
+    res.json({ success: true, saved: newContacts.length, skipped: contacts.length - newContacts.length });
+  } catch(e) {
+    console.error('Import error:', e.message);
+    res.json({ success: false, error: e.message });
+  }
+});
+
+app.post('/api/import-contacts', async (req, res) => {
+  try {
+    const { contacts } = req.body;
+    if (!contacts || !contacts.length) return res.json({ success: false, error: 'No contacts provided' });
+    const token = await getGoogleToken();
+    if (!token) return res.json({ success: false, error: 'Google Sheets not connected' });
+    // Get existing phones to avoid duplicates
+    const checkRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:A`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const checkData = await checkRes.json();
+    const existing = new Set((checkData.values || []).flat());
+    const newContacts = contacts.filter(c => !existing.has(c.phone));
+    if (!newContacts.length) return res.json({ success: true, saved: 0, message: 'All contacts already exist' });
+    // Batch save to Google Sheet
+    const now = new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
+    const values = newContacts.map(c => [c.phone, c.name || 'Customer', now]);
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values })
+      }
+    );
+    console.log(`✅ Imported ${newContacts.length} contacts to Google Sheet`);
+    res.json({ success: true, saved: newContacts.length, skipped: contacts.length - newContacts.length });
+  } catch(e) {
+    console.error('Import error:', e.message);
+    res.json({ success: false, error: e.message });
+  }
+});
+
 app.get('/api/contacts', async (req, res) => {
   try {
     const url = process.env.KV_REST_API_URL;
@@ -1042,6 +1125,55 @@ app.get('/api/contacts', async (req, res) => {
   } catch (e) { 
     console.error('Contacts error:', e.message);
     res.json([]); 
+  }
+});
+
+app.post('/api/import-contacts', async (req, res) => {
+  try {
+    const { contacts } = req.body;
+    if (!contacts || !contacts.length) return res.json({ success: false, error: 'No contacts provided' });
+    
+    const token = await getGoogleToken();
+    if (!token) return res.json({ success: false, error: 'Google Sheets not connected' });
+    
+    // Get existing phones to avoid duplicates
+    const checkRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A:A`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const checkData = await checkRes.json();
+    const existing = new Set((checkData.values || []).flat());
+    
+    // Filter out duplicates
+    const newContacts = contacts.filter(c => !existing.has(c.phone));
+    
+    if (!newContacts.length) {
+      return res.json({ success: true, saved: 0, message: 'All contacts already exist' });
+    }
+    
+    // Batch save to Google Sheet
+    const now = new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' });
+    const values = newContacts.map(c => [c.phone, c.name || 'Customer', now]);
+    
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A1:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values })
+      }
+    );
+    
+    // Also save to Redis contacts
+    for (const c of newContacts) {
+      await saveContact(c.phone, c.name || 'Customer');
+    }
+    
+    console.log(`✅ Imported ${newContacts.length} contacts`);
+    res.json({ success: true, saved: newContacts.length, skipped: contacts.length - newContacts.length });
+  } catch(e) {
+    console.error('Import error:', e.message);
+    res.json({ success: false, error: e.message });
   }
 });
 
