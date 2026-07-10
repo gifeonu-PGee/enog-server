@@ -2,6 +2,78 @@ const express = require('express');
 const app = express();
 const crypto = require('crypto');
 
+// ── Meta WhatsApp Cloud API Config ──────────────────────────────────────────
+const META_PHONE_ID = '1171516732717565';
+const META_WA_BIZ_ID = '26992625300419390';
+// Note: Access token should be set as environment variable META_ACCESS_TOKEN
+// The token above is temporary — we'll set a permanent one in Railway
+
+async function sendMetaWA(to, text) {
+  try {
+    const token = process.env.META_ACCESS_TOKEN;
+    if (!token) { console.error('No META_ACCESS_TOKEN set'); return false; }
+    
+    // Clean the phone number
+    let phone = to.replace('whatsapp:+', '').replace('whatsapp:', '').replace('+', '');
+    
+    const res = await fetch(`https://graph.facebook.com/v19.0/${META_PHONE_ID}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: phone,
+        type: 'text',
+        text: { preview_url: true, body: text }
+      })
+    });
+    const data = await res.json();
+    if (data.error) {
+      console.error('Meta send error:', JSON.stringify(data.error));
+      return false;
+    }
+    console.log('Meta message sent to:', phone);
+    return true;
+  } catch(e) {
+    console.error('Meta send error:', e.message);
+    return false;
+  }
+}
+
+async function sendMetaTemplate(to, templateName, variables) {
+  try {
+    const token = process.env.META_ACCESS_TOKEN;
+    if (!token) return false;
+    let phone = to.replace('whatsapp:+', '').replace('whatsapp:', '').replace('+', '');
+    const res = await fetch(`https://graph.facebook.com/v19.0/${META_PHONE_ID}/messages`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: phone,
+        type: 'template',
+        template: {
+          name: templateName,
+          language: { code: 'en' },
+          components: [{
+            type: 'body',
+            parameters: variables.map(v => ({ type: 'text', text: v }))
+          }]
+        }
+      })
+    });
+    const data = await res.json();
+    if (data.error) { console.error('Meta template error:', JSON.stringify(data.error)); return false; }
+    return true;
+  } catch(e) { return false; }
+}
+
+// ── Meta WhatsApp Cloud API ───────────────────────────────────────────────────
+
+
 // Google Sheets Integration
 
 // ── Google Sheets Integration ────────────────────────────────────────────────
@@ -386,6 +458,15 @@ RULES:
 - Be warm and persuasive — always find a reason to keep the conversation going
 - If conversation gets complicated, confusing or customer is very difficult → escalate to manager immediately
 - When customer sends a picture of a hairstyle or color they want → advise them to visit the website for excellent color selection: https://enogbeautycastle.bumpa.shop/
+
+STOCK & AVAILABILITY RULES — VERY IMPORTANT:
+- NEVER confirm that a specific product, color or size is available unless you are 100% certain
+- The website is constantly being updated with new stock and availability
+- When customer asks if a specific color or product is available, say:
+  "Please confirm with our manager before making payment to ensure availability: wa.me/2347034562686 or call 07034562686 😊"
+- NEVER say "yes it's available" for specific colors/sizes without directing to manager first
+- You can confirm general product categories (French Curls, Body Wave etc) but NOT specific colors or sizes
+- Always add: "Kindly confirm with our manager to avoid disappointment before making payment" 
 
 BUSINESS INFO:
 - Business Name: Enog Braid Extensions
@@ -1468,6 +1549,8 @@ How can I help assist you in navigating the website my lover?? 😊`;
       }
 
       const systemPrompt = `${BUSINESS_PROMPT}
+${websiteKnowledge ? `CURRENT WEBSITE CONTENT (check this for actual stock/availability):\n${websiteKnowledge}\n\nUse this website content to answer questions about what is currently available. If something is not mentioned on the website, tell customer to confirm with manager before payment.` : 'NOTE: Website content not loaded yet — always direct customer to manager to confirm stock availability before payment.'}
+
 CONVERSATION: ONGOING — NO greeting. Reply directly to what the customer said.`;
 
       const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1576,7 +1659,7 @@ app.listen(PORT, '0.0.0.0', () => {
   initGoogleSheet().catch(e => console.error('Sheet init error:', e.message));
   // Initialize Google Sheet
   learnFromWebsite().catch(e => console.error('Website learn error:', e.message));
-  setInterval(learnFromWebsite, 6 * 60 * 60 * 1000); // Refresh website knowledge every 6 hours
+  setInterval(learnFromWebsite, 2 * 60 * 60 * 1000); // Refresh website knowledge every 2 hours
   // Run immediately on startup to catch any missed follow-ups
   setTimeout(sendFollowUps, 5000);
 });
