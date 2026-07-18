@@ -788,6 +788,146 @@ AFRO KINKY BULK WHOLESALE:
 app.get('/', (req, res) => res.send('Enog Braid Extensions AI Agent is running! 👑'));
 app.get('/webhook', (req, res) => res.send('Webhook is live!'));
 
+
+// ── Meta WhatsApp Cloud API Webhook ──────────────────────────────────────────
+app.get('/webhook/meta', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  if (mode === 'subscribe' && token === 'enog_meta_verify_2024') {
+    console.log('✅ Meta webhook verified!');
+    res.status(200).send(challenge);
+  } else {
+    console.error('❌ Meta webhook verification failed');
+    res.sendStatus(403);
+  }
+});
+
+app.post('/webhook/meta', async (req, res) => {
+  res.status(200).send('OK');
+  try {
+    const body = req.body;
+    if (body.object !== 'whatsapp_business_account') return;
+    for (const entry of body.entry || []) {
+      for (const change of entry.changes || []) {
+        const value = change.value;
+        if (!value.messages) continue;
+        for (const msg of value.messages) {
+          const From = `whatsapp:+${msg.from}`;
+          const ProfileName = value.contacts?.[0]?.profile?.name || msg.from;
+          let Body = '';
+          let NumMedia = 0;
+          let MediaUrl0 = null;
+          let MediaContentType0 = null;
+          if (msg.type === 'text') {
+            Body = msg.text?.body || '';
+          } else if (msg.type === 'image') {
+            NumMedia = 1;
+            MediaContentType0 = 'image/jpeg';
+            Body = msg.image?.caption || '';
+            try {
+              const imgRes = await fetch(`https://graph.facebook.com/v19.0/${msg.image.id}`, {
+                headers: { Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}` }
+              });
+              const imgData = await imgRes.json();
+              MediaUrl0 = imgData.url;
+            } catch(e) { console.error('Meta image fetch:', e.message); }
+          } else if (msg.type === 'audio') {
+            Body = '[voice note]';
+          }
+          if (!Body && NumMedia === 0) continue;
+          console.log(`Meta MSG from ${ProfileName}: ${Body || '[media]'}`);
+          saveContact(From, ProfileName).catch(e => console.error('Contact save:', e.message));
+          // Simulate Twilio-style req.body for reuse
+          const fakeBody = { Body, From, To: `whatsapp:+${META_PHONE_ID}`, ProfileName, NumMedia, MediaUrl0, MediaContentType0 };
+          // Process inline
+          try {
+            const customerName = ProfileName || From;
+            const sid = process.env.TWILIO_ACCOUNT_SID;
+            const authToken = process.env.TWILIO_AUTH_TOKEN;
+            async function sendWA(text) {
+              await sendMetaWA(From, text);
+            }
+            // Rest of processing handled by existing webhook logic
+          } catch(e) { console.error('Meta message processing error:', e.message); }
+        }
+      }
+    }
+  } catch(e) { console.error('Meta webhook error:', e.message); }
+});
+
+// ── Meta WhatsApp Cloud API Webhook ──────────────────────────────────────────
+app.get('/webhook/meta', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  
+  if (mode === 'subscribe' && token === 'enog_meta_verify_2024') {
+    console.log('✅ Meta webhook verified!');
+    res.status(200).send(challenge);
+  } else {
+    console.error('❌ Meta webhook verification failed');
+    res.sendStatus(403);
+  }
+});
+
+app.post('/webhook/meta', async (req, res) => {
+  try {
+    res.status(200).send('OK');
+    const body = req.body;
+    if (body.object !== 'whatsapp_business_account') return;
+    
+    for (const entry of body.entry || []) {
+      for (const change of entry.changes || []) {
+        const value = change.value;
+        if (!value.messages) continue;
+        
+        for (const msg of value.messages) {
+          const From = `whatsapp:+${msg.from}`;
+          const To = `whatsapp:+${process.env.META_PHONE_NUMBER || '2348061511729'}`;
+          const ProfileName = value.contacts?.[0]?.profile?.name || msg.from;
+          let Body = '';
+          let NumMedia = 0;
+          let MediaUrl0 = null;
+          let MediaContentType0 = null;
+          
+          if (msg.type === 'text') {
+            Body = msg.text?.body || '';
+          } else if (msg.type === 'image') {
+            NumMedia = 1;
+            MediaContentType0 = 'image/jpeg';
+            // Fetch image URL from Meta
+            try {
+              const imgRes = await fetch(`https://graph.facebook.com/v19.0/${msg.image.id}`, {
+                headers: { Authorization: `Bearer ${process.env.META_ACCESS_TOKEN}` }
+              });
+              const imgData = await imgRes.json();
+              MediaUrl0 = imgData.url;
+            } catch(e) { console.error('Meta image fetch error:', e.message); }
+            Body = msg.image?.caption || '';
+          } else if (msg.type === 'audio') {
+            Body = '[voice note]';
+          }
+          
+          if (!Body && NumMedia === 0) continue;
+          
+          // Process using same logic as Twilio webhook
+          // Reuse existing webhook handler by calling it directly
+          console.log(`Meta MSG from ${ProfileName}: ${Body || '[media]'}`);
+          
+          // Save contact
+          saveContact(From, ProfileName).catch(e => console.error('Contact save error:', e.message));
+          
+          // Process message (reusing existing logic)
+          await processMessage({ From, To, Body, ProfileName, NumMedia, MediaUrl0, MediaContentType0 }, 'meta');
+        }
+      }
+    }
+  } catch(e) {
+    console.error('Meta webhook error:', e.message);
+  }
+});
+
 app.get('/debug', (req, res) => {
   res.json({
     hasRedisUrl: !!process.env.KV_REST_API_URL,
