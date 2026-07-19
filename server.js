@@ -3,8 +3,8 @@ const app = express();
 const crypto = require('crypto');
 
 // ── Meta WhatsApp Cloud API Config ──────────────────────────────────────────
-const META_PHONE_ID = '1171516732717565';
-const META_WA_BIZ_ID = '26992625300419390';
+const META_PHONE_ID = '1204039766129464'; // +2348156394852 supervisor line
+const META_WA_BIZ_ID = '973772223376878'; // Enog Beauty Castle
 // Note: Access token should be set as environment variable META_ACCESS_TOKEN
 // The token above is temporary — we'll set a permanent one in Railway
 
