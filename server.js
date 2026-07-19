@@ -1936,6 +1936,50 @@ app.listen(PORT, '0.0.0.0', () => {
   setInterval(sendFollowUps, 30 * 60 * 1000); // Check every 30 minutes
   console.log('Follow-up scheduler started — checking every 15 minutes');
   initGoogleSheet().catch(e => console.error('Sheet init error:', e.message));
+  
+
+  // Auto-subscribe to WABA webhooks on startup
+  setTimeout(async () => {
+    try {
+      const token = process.env.META_ACCESS_TOKEN;
+      const wabaId = '973772223376878';
+      if (!token) { console.log('No META_ACCESS_TOKEN — skipping WABA subscription'); return; }
+      const res = await fetch(`https://graph.facebook.com/v19.0/${wabaId}/subscribed_apps`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (data.success) {
+        console.log('✅ Successfully subscribed to WABA webhooks!');
+      } else {
+        console.log('WABA subscription result:', JSON.stringify(data));
+      }
+    } catch(e) { console.error('WABA subscription error:', e.message); }
+  }, 3000);
+
+  // Subscribe app to WhatsApp Business Account webhooks automatically
+  setTimeout(async () => {
+    try {
+      const token = process.env.META_ACCESS_TOKEN;
+      const wabaId = '973772223376878';
+      if (!token) { console.log('No META_ACCESS_TOKEN — skipping WABA subscription'); return; }
+      const res = await fetch(`https://graph.facebook.com/v19.0/${wabaId}/subscribed_apps`, {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        console.log('✅ Successfully subscribed to WABA webhooks!');
+      } else {
+        console.log('WABA subscription result:', JSON.stringify(data));
+      }
+    } catch(e) {
+      console.error('WABA subscription error:', e.message);
+    }
+  }, 3000);
   // Initialize Google Sheet
   learnFromWebsite().catch(e => console.error('Website learn error:', e.message));
   setInterval(learnFromWebsite, 2 * 60 * 60 * 1000); // Refresh website knowledge every 2 hours
